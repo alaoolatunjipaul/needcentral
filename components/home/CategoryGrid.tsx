@@ -18,7 +18,7 @@ export function CategoryGrid() {
             Shop by category
           </h2>
           <p className="mt-1.5 text-sm text-zinc-500 sm:text-base">
-            Eight curated departments, zero endless scrolling.
+            Every aisle of the market, one trusted store — from phones to foodstuff.
           </p>
         </div>
         <Link

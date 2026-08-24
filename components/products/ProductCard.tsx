@@ -8,6 +8,13 @@ import type { Product } from "@/types";
 
 const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
 
+function originLabel(product: Product): string | null {
+  if (!product.origin?.madeInAfrica) return null;
+  return product.origin.countryCode === "NG"
+    ? "Nigerian made"
+    : `Made in ${product.origin.country}`;
+}
+
 interface ProductCardProps {
   product: Product;
   priority?: boolean;
@@ -16,6 +23,7 @@ interface ProductCardProps {
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const discount = discountPercent(product.priceCents, product.compareAtPriceCents);
   const outOfStock = product.stock <= 0;
+  const madeIn = originLabel(product);
 
   return (
     <article className="group relative flex h-full flex-col">
@@ -56,6 +64,9 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
             {product.name}
           </h3>
           <RatingStars rating={product.rating} reviewCount={product.reviewCount} />
+          {madeIn && (
+            <p className="text-[11px] font-medium text-emerald-700">{madeIn}</p>
+          )}
           <div className="mt-auto flex items-baseline gap-2 pt-1">
             <span className="text-lg font-bold tracking-tight text-zinc-900">
               {formatPrice(product.priceCents)}

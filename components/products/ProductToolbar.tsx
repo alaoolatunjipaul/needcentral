@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
-import { ChevronDown, Search, SearchX, X } from "lucide-react";
-import type { CategoryId, ProductQuery, SortOption } from "@/types";
+import { ChevronDown, Search, SearchX, Sparkles, X } from "lucide-react";
+import { COLLECTION_IDS } from "@/types";
+import type {
+  CategoryId,
+  ProductQuery,
+  SortOption,
+} from "@/types";
+import { COLLECTION_LABEL } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -41,6 +47,7 @@ export function ProductToolbar({
       const params = new URLSearchParams();
       if (next.q) params.set("q", next.q);
       if (next.category !== "all") params.set("category", next.category);
+      if (next.collection !== "all") params.set("collection", next.collection);
       if (next.sort !== "featured") params.set("sort", next.sort);
       const queryString = params.toString();
       router.push(queryString ? `/products?${queryString}` : "/products", {
@@ -63,7 +70,8 @@ export function ProductToolbar({
     }, 350);
   }
 
-  const hasActiveFilters = query.category !== "all" || Boolean(query.q);
+  const hasActiveFilters =
+    query.category !== "all" || query.collection !== "all" || Boolean(query.q);
 
   return (
     <div className="space-y-4">
@@ -163,6 +171,32 @@ export function ProductToolbar({
               </li>
             )
           )}
+          {COLLECTION_IDS.map((collectionId) => (
+            <li key={collectionId} className="shrink-0">
+              <button
+                type="button"
+                onClick={() =>
+                  applyUpdate(
+                    {
+                      collection:
+                        query.collection === collectionId ? "all" : collectionId,
+                    },
+                    true
+                  )
+                }
+                aria-pressed={query.collection === collectionId}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium ring-1 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600",
+                  query.collection === collectionId
+                    ? "bg-emerald-600 text-white ring-emerald-600"
+                    : "bg-white text-emerald-700 ring-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                )}
+              >
+                <Sparkles aria-hidden="true" className="size-3.5" />
+                {COLLECTION_LABEL[collectionId]}
+              </button>
+            </li>
+          ))}
         </ul>
       </nav>
 
@@ -174,6 +208,9 @@ export function ProductToolbar({
             Showing <span className="font-semibold text-zinc-900">{resultCount}</span>{" "}
             product{resultCount === 1 ? "" : "s"}
             {query.category !== "all" && <> in {categoryNames[query.category]}</>}
+            {query.collection !== "all" && (
+              <> from {COLLECTION_LABEL[query.collection]}</>
+            )}
             {query.q && (
               <>
                 {" "}for “<span className="font-semibold text-zinc-900">{query.q}</span>”

@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { CartItem, Product } from "@/types";
 
-const STORAGE_KEY = "vendora.cart.v1";
+const STORAGE_KEY = "needcentral.cart.v1";
 const EMPTY_ITEMS: CartItem[] = [];
 
 interface CartContextValue {

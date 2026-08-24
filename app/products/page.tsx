@@ -11,7 +11,7 @@ const categoryNames = Object.fromEntries(
 export const metadata: Metadata = {
   title: "Shop all products",
   description:
-    "Browse the full Vendora catalogue — audio, smartphones, computers, wearables, photography gear, gaming, home and fitness. Filter by category, sort by price and find your next favourite thing.",
+    "Browse the full NeedCentral catalogue — electronics, phones, computers, fashion, beauty, groceries, home and more. Filter by category, explore African-made goods, sort by price and find what you need.",
 };
 
 interface ProductsPageProps {
@@ -31,7 +31,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           Shop products
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-          Every product in the marketplace, in one place. Use search and filters
+          Every product on the marketplace, in one place. Use search and filters
           to zero in on exactly what you need.
         </p>
       </header>

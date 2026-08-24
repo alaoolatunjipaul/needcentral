@@ -17,26 +17,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://vendora.example.com"),
+  metadataBase: new URL("https://needcentral.example.com"),
   title: {
-    default: "Vendora · Everyday gear, extraordinary finds",
-    template: "%s · Vendora",
+    default: "NeedCentral · A global marketplace born in Nigeria",
+    template: "%s · NeedCentral",
   },
   description:
-    "Vendora is a modern online marketplace for tech, home and lifestyle. Browse curated products, compare prices and check out in seconds.",
+    "NeedCentral is a global marketplace born in Nigeria — shop electronics, fashion, beauty, food and African-made goods from individuals, businesses, brands and creators, with fast delivery and buyer protection.",
   keywords: [
     "marketplace",
+    "global marketplace",
     "online shopping",
+    "Nigeria",
+    "African made",
     "electronics",
-    "home",
-    "lifestyle",
-    "Vendora",
+    "fashion",
+    "groceries",
+    "NeedCentral",
   ],
   openGraph: {
-    title: "Vendora · Everyday gear, extraordinary finds",
+    title: "NeedCentral · A global marketplace born in Nigeria",
     description:
-      "A modern online marketplace for tech, home and lifestyle. Free shipping over $75 and 30-day returns.",
-    siteName: "Vendora",
+      "The global marketplace born in Nigeria — proudly African roots, open to sellers and shoppers everywhere. Free standard delivery over ₦75,000 and 30-day returns.",
+    siteName: "NeedCentral",
     type: "website",
   },
 };

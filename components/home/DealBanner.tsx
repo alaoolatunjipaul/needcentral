@@ -1,14 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Flame } from "lucide-react";
-import { getProductById } from "@/lib/data";
+import { getProductById, promotions } from "@/lib/data";
 import { formatPrice } from "@/lib/utils";
 
-const DEAL_PRODUCT_ID = "optix-r7-mirrorless-camera";
-
 export function DealBanner() {
-  const deal = getProductById(DEAL_PRODUCT_ID);
+  const promotion = promotions[0];
+  const deal = promotion ? getProductById(promotion.productId) : undefined;
   if (!deal) return null;
+  const badge = promotion?.badge ?? "Limited-time deal";
 
   const savingsCents =
     deal.compareAtPriceCents !== undefined
@@ -29,7 +29,7 @@ export function DealBanner() {
           <div className="text-white">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide ring-1 ring-white/25 backdrop-blur">
               <Flame aria-hidden="true" className="size-3.5" />
-              Deal of the week
+              {badge}
             </p>
             <h2
               id="deal-heading"

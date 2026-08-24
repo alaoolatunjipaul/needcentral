@@ -2,11 +2,27 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import {
+  BadgeCheck,
+  ChevronRight,
+  MapPin,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Store,
+  Truck,
+} from "lucide-react";
 import { AddToCartPanel } from "@/components/products/AddToCartPanel";
 import { ProductGrid } from "@/components/products/ProductCard";
 import { RatingStars } from "@/components/products/RatingStars";
-import { categories, getAllProducts, getProductById, getRelatedProducts } from "@/lib/data";
+import {
+  categories,
+  getAllProducts,
+  getProductById,
+  getRelatedProducts,
+  getReviewsForProduct,
+  getSellerById,
+} from "@/lib/data";
 import { containerClass } from "@/lib/ui";
 import { discountPercent, formatPrice } from "@/lib/utils";
 
@@ -17,6 +33,12 @@ interface ProductPageProps {
 export function generateStaticParams(): Array<{ id: string }> {
   return getAllProducts().map((product) => ({ id: product.id }));
 }
+
+/**
+ * Every product id is prerendered at build time, so any other id is truly
+ * not found — served as a real HTTP 404 instead of a streamed fallback.
+ */
+export const dynamicParams = false;
 
 export async function generateMetadata({
   params,
@@ -47,6 +69,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
     categories.find((category) => category.id === product.category)?.name ??
     product.category;
   const discount = discountPercent(product.priceCents, product.compareAtPriceCents);
+  const seller = product.sellerId ? getSellerById(product.sellerId) : undefined;
+  const reviews = getReviewsForProduct(product.id);
 
   return (
     <div className={containerClass}>
@@ -103,12 +127,25 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
 
         <div className="flex flex-col">
-          <Link
-            href={`/products?category=${product.category}`}
-            className="inline-flex w-fit items-center rounded-full bg-brand-50 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700 ring-1 ring-brand-200 transition hover:bg-brand-100"
-          >
-            {categoryName}
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/products?category=${product.category}`}
+              className="inline-flex w-fit items-center rounded-full bg-brand-50 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700 ring-1 ring-brand-200 transition hover:bg-brand-100"
+            >
+              {categoryName}
+            </Link>
+            {product.origin?.madeInAfrica && (
+              <Link
+                href="/products?collection=african-made"
+                className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-100"
+              >
+                <Sparkles aria-hidden="true" className="size-3" />
+                {product.origin.countryCode === "NG"
+                  ? "Nigerian made"
+                  : `Made in ${product.origin.country}`}
+              </Link>
+            )}
+          </div>
 
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-zinc-950 sm:text-4xl">
             {product.name}
@@ -131,6 +168,34 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <p className="mt-5 leading-7 text-zinc-600">{product.description}</p>
 
+          {seller && (
+            <div className="mt-6 flex items-center gap-3 rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+              <span
+                aria-hidden="true"
+                className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-violet-500 text-sm font-extrabold text-white"
+              >
+                {seller.name.slice(0, 1)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900">
+                  <Store aria-hidden="true" className="size-4 text-brand-600" />
+                  Sold by {seller.name}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin aria-hidden="true" className="size-3" />
+                    {seller.location}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <BadgeCheck aria-hidden="true" className="size-3 text-emerald-600" />
+                    Verified seller since {seller.joinedYear}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="mt-7">
             <AddToCartPanel product={product} />
           </div>
@@ -139,7 +204,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <li className="flex items-start gap-2.5">
               <Truck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-600" />
               <span className="text-sm leading-5 text-zinc-600">
-                Free shipping on orders over $75
+                Free standard delivery on orders over ₦75,000
               </span>
             </li>
             <li className="flex items-start gap-2.5">
@@ -151,12 +216,50 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <li className="flex items-start gap-2.5">
               <ShieldCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-600" />
               <span className="text-sm leading-5 text-zinc-600">
-                2-year warranty on all tech products
+                NeedCentral buyer protection on every order
               </span>
             </li>
           </ul>
         </div>
       </div>
+
+      <section aria-labelledby="reviews-heading" className="border-t border-zinc-200 py-12">
+        <h2 id="reviews-heading" className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
+          Customer reviews
+        </h2>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <RatingStars rating={product.rating} reviewCount={product.reviewCount} size="md" />
+        </div>
+
+        <ul className="mt-8 grid gap-4 lg:grid-cols-3">
+          {reviews.map((review) => (
+            <li
+              key={review.id}
+              className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
+            >
+              <RatingStars rating={review.rating} />
+              <h3 className="mt-3 font-semibold text-zinc-900">{review.title}</h3>
+              <p className="mt-1.5 flex-1 text-sm leading-6 text-zinc-600">
+                {review.body}
+              </p>
+              <p className="mt-4 flex flex-wrap items-center gap-x-2 text-xs text-zinc-400">
+                <span className="font-semibold text-zinc-600">{review.author}</span>
+                {review.location && <span>{review.location}</span>}
+                {review.verifiedPurchase && (
+                  <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                    <BadgeCheck aria-hidden="true" className="size-3.5" />
+                    Verified purchase
+                  </span>
+                )}
+              </p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-6 text-xs leading-5 text-zinc-400">
+          Reviews are shown from recent verified NeedCentral orders. Full review
+          history arrives with customer accounts.
+        </p>
+      </section>
 
       {relatedProducts.length > 0 && (
         <section aria-labelledby="related-heading" className="border-t border-zinc-200 py-12">

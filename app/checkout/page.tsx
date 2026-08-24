@@ -10,68 +10,107 @@ import {
   Lock,
   MapPin,
   ShoppingBag,
+  Truck,
   User,
 } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
+import { getDeliveryOptionById, getDeliveryOptions } from "@/lib/data";
 import { btnPrimary, containerClass, inputBase } from "@/lib/ui";
-import { computeCartTotals, formatPrice } from "@/lib/utils";
-import type { CartItem } from "@/types";
-
-interface PlacedOrder {
-  id: string;
-  email: string;
-  items: CartItem[];
-  subtotalCents: number;
-  shippingCents: number;
-  totalCents: number;
-  placedAtISO: string;
-}
+import {
+  computeCartTotals,
+  formatPrice,
+  FREE_SHIPPING_THRESHOLD_CENTS,
+  MARKET_CONFIG,
+} from "@/lib/utils";
+import type { Address, DeliveryOptionId, Order, OrderItem } from "@/types";
 
 const COUNTRIES = [
+  "Nigeria",
+  "Ghana",
+  "Kenya",
+  "South Africa",
+  "Rwanda",
+  "Benin",
+  "Côte d’Ivoire",
+  "Senegal",
+  "Tanzania",
   "United States",
-  "Canada",
   "United Kingdom",
   "Germany",
-  "Australia",
+  "Canada",
 ] as const;
 
 function generateOrderId(): string {
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `VD-${Date.now().toString(36).toUpperCase()}-${random}`;
+  return `NC-${Date.now().toString(36).toUpperCase()}-${random}`;
 }
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart();
-  const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null);
-  const totals = computeCartTotals(items);
+  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+  const [deliveryId, setDeliveryId] = useState<DeliveryOptionId>("standard");
+
+  const deliveryOptions = getDeliveryOptions();
+  const selectedDelivery =
+    getDeliveryOptionById(deliveryId) ?? deliveryOptions[0];
+  const totals = computeCartTotals(items, selectedDelivery);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (items.length === 0) return;
+    if (items.length === 0 || !selectedDelivery) return;
     const data = new FormData(event.currentTarget);
-    const email = String(data.get("email") ?? "");
-    const order: PlacedOrder = {
+
+    const address: Address = {
+      fullName: String(data.get("name") ?? ""),
+      street: String(data.get("address") ?? ""),
+      city: String(data.get("city") ?? ""),
+      postalCode: String(data.get("postalCode") ?? ""),
+      country: String(data.get("country") ?? MARKET_CONFIG.country),
+    };
+
+    const orderItems: OrderItem[] = items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      image: item.image,
+      priceCents: item.priceCents,
+      quantity: item.quantity,
+    }));
+
+    const placedAtISO = new Date().toISOString();
+    const estimatedDeliveryISO = new Date(
+      new Date(placedAtISO).getTime() +
+        selectedDelivery.etaMaxDays * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const order: Order = {
       id: generateOrderId(),
-      email,
-      items,
+      email: String(data.get("email") ?? ""),
+      items: orderItems,
       subtotalCents: totals.subtotalCents,
       shippingCents: totals.shippingCents,
       totalCents: totals.totalCents,
-      placedAtISO: new Date().toISOString(),
+      status: "confirmed",
+      deliveryOptionId: selectedDelivery.id,
+      shippingAddress: address,
+      placedAtISO,
+      estimatedDeliveryISO,
     };
+
     setPlacedOrder(order);
     clearCart();
     window.scrollTo({ top: 0 });
   }
 
   if (placedOrder) {
+    const delivery = getDeliveryOptionById(placedOrder.deliveryOptionId);
     const deliveryDate = new Date(
-      new Date(placedOrder.placedAtISO).getTime() + 7 * 24 * 60 * 60 * 1000
-    ).toLocaleDateString("en-US", {
+      placedOrder.estimatedDeliveryISO
+    ).toLocaleDateString(MARKET_CONFIG.locale, {
       weekday: "long",
       month: "long",
       day: "numeric",
     });
+    const address = placedOrder.shippingAddress;
 
     return (
       <div className={containerClass}>
@@ -83,8 +122,8 @@ export default function CheckoutPage() {
             Order confirmed!
           </h1>
           <p className="mt-3 text-sm leading-6 text-zinc-500 sm:text-base">
-            Thanks for shopping with Vendora. A confirmation email is on its way
-            to <strong className="text-zinc-900">{placedOrder.email}</strong>.
+            Thanks for shopping with NeedCentral. A confirmation email is on its
+            way to <strong className="text-zinc-900">{placedOrder.email}</strong>.
           </p>
 
           <dl className="mt-8 grid gap-3 rounded-2xl bg-white p-6 text-left shadow-sm ring-1 ring-zinc-200 sm:grid-cols-2">
@@ -101,7 +140,23 @@ export default function CheckoutPage() {
                 Estimated delivery
               </dt>
               <dd className="mt-1 text-sm font-medium text-zinc-900">{deliveryDate}</dd>
+              {delivery && (
+                <dd className="mt-0.5 text-xs text-zinc-500">
+                  {delivery.label} · {delivery.etaMinDays}–{delivery.etaMaxDays} days
+                </dd>
+              )}
             </div>
+            {address && (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Delivering to
+                </dt>
+                <dd className="mt-1 text-sm leading-5 text-zinc-700">
+                  {address.fullName}, {address.street}, {address.city},{" "}
+                  {address.country}
+                </dd>
+              </div>
+            )}
           </dl>
 
           <ul className="mt-4 divide-y divide-zinc-200 rounded-2xl bg-white p-2 text-left shadow-sm ring-1 ring-zinc-200">
@@ -121,7 +176,7 @@ export default function CheckoutPage() {
             ))}
             <li className="flex items-center justify-between p-3 text-sm">
               <span className="font-medium text-zinc-500">
-                Subtotal + shipping ({placedOrder.shippingCents === 0 ? "free" : formatPrice(placedOrder.shippingCents)})
+                Subtotal + delivery ({placedOrder.shippingCents === 0 ? "free" : formatPrice(placedOrder.shippingCents)})
               </span>
               <span className="font-bold tabular-nums text-zinc-950">
                 {formatPrice(placedOrder.totalCents)} paid
@@ -216,7 +271,7 @@ export default function CheckoutPage() {
                   type="text"
                   required
                   autoComplete="name"
-                  placeholder="Alex Johnson"
+                  placeholder="Chidera Okonkwo"
                   className={inputBase}
                 />
               </div>
@@ -230,7 +285,7 @@ export default function CheckoutPage() {
                   type="text"
                   required
                   autoComplete="street-address"
-                  placeholder="123 Market Street"
+                  placeholder="12 Adeola Odeku Street, Victoria Island"
                   className={inputBase}
                 />
               </div>
@@ -244,7 +299,7 @@ export default function CheckoutPage() {
                   type="text"
                   required
                   autoComplete="address-level2"
-                  placeholder="Portland"
+                  placeholder="Lagos"
                   className={inputBase}
                 />
               </div>
@@ -258,7 +313,7 @@ export default function CheckoutPage() {
                   type="text"
                   required
                   autoComplete="postal-code"
-                  placeholder="97201"
+                  placeholder="101241"
                   className={inputBase}
                 />
               </div>
@@ -266,7 +321,14 @@ export default function CheckoutPage() {
                 <label htmlFor="checkout-country" className="mb-1.5 block text-sm font-medium text-zinc-700">
                   Country
                 </label>
-                <select id="checkout-country" name="country" required autoComplete="country-name" className={inputBase}>
+                <select
+                  id="checkout-country"
+                  name="country"
+                  required
+                  autoComplete="country-name"
+                  defaultValue={MARKET_CONFIG.country}
+                  className={inputBase}
+                >
                   {COUNTRIES.map((country) => (
                     <option key={country} value={country}>
                       {country}
@@ -275,6 +337,71 @@ export default function CheckoutPage() {
                 </select>
               </div>
             </div>
+          </section>
+
+          <section aria-labelledby="delivery-heading" className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+            <h2 id="delivery-heading" className="flex items-center gap-2 text-lg font-bold text-zinc-900">
+              <Truck aria-hidden="true" className="size-5 text-brand-600" />
+              Delivery option
+            </h2>
+            <fieldset className="mt-5">
+              <legend className="sr-only">Choose a delivery option</legend>
+              <div className="grid gap-3">
+                {deliveryOptions.map((option, index) => {
+                  const isSelected = option.id === deliveryId;
+                  const price =
+                    option.freeThresholdCents !== undefined &&
+                    totals.subtotalCents >= option.freeThresholdCents
+                      ? 0
+                      : option.priceCents;
+                  return (
+                    <label
+                      key={option.id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600 ${
+                        isSelected
+                          ? "border-brand-600 bg-brand-50/60 ring-1 ring-brand-600"
+                          : "border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="deliveryOption"
+                        value={option.id}
+                        checked={isSelected}
+                        onChange={() => setDeliveryId(option.id)}
+                        className="mt-1 size-4 accent-brand-600"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-zinc-900">
+                          {option.label}
+                          {index === 0 && (
+                            <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                              Popular
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
+                          {option.description} · arrives in {option.etaMinDays}–
+                          {option.etaMaxDays} days
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 text-sm font-bold tabular-nums ${
+                          price === 0 ? "text-emerald-600" : "text-zinc-900"
+                        }`}
+                      >
+                        {price === 0 ? "Free" : formatPrice(price)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <p className="mt-4 text-xs leading-5 text-zinc-500">
+              Standard delivery is free on orders over{" "}
+              {formatPrice(FREE_SHIPPING_THRESHOLD_CENTS)}. Pickup stations in
+              more cities and cross-border delivery are next on our roadmap.
+            </p>
           </section>
 
           <section aria-labelledby="payment-heading" className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
@@ -289,7 +416,8 @@ export default function CheckoutPage() {
               </span>
             </div>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              No real payment is processed — any values work, or use the sample card below.
+              No real payment is processed — cards, bank transfer and USSD arrive
+              with a later release. Any values work, or use the sample card below.
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               <div className="sm:col-span-3">
@@ -376,7 +504,9 @@ export default function CheckoutPage() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-zinc-500">Shipping</dt>
+                <dt className="text-zinc-500">
+                  Delivery{selectedDelivery ? ` · ${selectedDelivery.label}` : ""}
+                </dt>
                 <dd
                   className={`font-medium tabular-nums ${
                     totals.shippingCents === 0 ? "text-emerald-600" : "text-zinc-900"

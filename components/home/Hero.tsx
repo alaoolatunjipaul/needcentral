@@ -24,19 +24,20 @@ export function Hero() {
         <div className="animate-fade-up">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3.5 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-brand-200">
             <Sparkles aria-hidden="true" className="size-3.5" />
-            New season · hundreds of fresh finds
+            Born in Nigeria · open to the world
           </span>
 
           <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-            Everything you love,{" "}
+            A global marketplace,{" "}
             <span className="bg-gradient-to-r from-brand-600 to-violet-500 bg-clip-text text-transparent">
-              one marketplace
+              born in Nigeria
             </span>
           </h1>
 
           <p className="mt-5 max-w-xl text-lg leading-8 text-zinc-600">
-            Discover hand-picked tech, home and lifestyle products with honest
-            reviews, fast shipping and effortless returns.
+            Shop electronics, fashion, food and African-made goods from
+            individuals, small businesses, brands and creators — with honest
+            reviews, fast delivery and effortless returns.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -44,8 +45,8 @@ export function Hero() {
               Start shopping
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
-            <Link href="/categories" className={btnSecondary}>
-              Browse categories
+            <Link href="/products?collection=african-made" className={btnSecondary}>
+              Explore African made
             </Link>
           </div>
 
@@ -67,9 +68,9 @@ export function Hero() {
             </div>
             <div className="px-3">
               <dt className="order-2 mt-0.5 text-xs font-medium text-zinc-500">
-                Free shipping
+                Free delivery
               </dt>
-              <dd className="text-lg font-bold tabular-nums text-zinc-900">$75+</dd>
+              <dd className="whitespace-nowrap text-lg font-bold tabular-nums text-zinc-900">₦75k+</dd>
             </div>
           </dl>
         </div>
@@ -118,7 +119,7 @@ export function Hero() {
         <ul className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-4 py-5 text-sm font-medium text-zinc-500 sm:justify-between sm:px-6 lg:px-8">
           <li className="flex items-center gap-2">
             <Truck aria-hidden="true" className="size-4 text-brand-600" />
-            Free shipping over $75
+            Free standard delivery over ₦75,000
           </li>
           <li className="flex items-center gap-2">
             <RotateCcw aria-hidden="true" className="size-4 text-brand-600" />
@@ -126,7 +127,7 @@ export function Hero() {
           </li>
           <li className="flex items-center gap-2">
             <ShieldCheck aria-hidden="true" className="size-4 text-brand-600" />
-            2-year warranty included
+            Buyer protection on every order
           </li>
         </ul>
       </div>

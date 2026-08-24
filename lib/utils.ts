@@ -1,8 +1,21 @@
-import type { CartItem, CartTotals } from "@/types";
+import type { CartItem, CartTotals, DeliveryOption } from "@/types";
 
-const priceFormatter = new Intl.NumberFormat("en-US", {
+/**
+ * Launch market configuration. Kept in one place so a later multi-currency /
+ * multi-country layer (Ghana, Kenya, South Africa, …) can extend it without
+ * touching call sites.
+ */
+export const MARKET_CONFIG = {
+  locale: "en-NG",
+  currency: "NGN",
+  country: "Nigeria",
+} as const;
+
+const priceFormatter = new Intl.NumberFormat(MARKET_CONFIG.locale, {
   style: "currency",
-  currency: "USD",
+  currency: MARKET_CONFIG.currency,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
 export function formatPrice(cents: number): string {
@@ -15,18 +28,40 @@ export function cn(
   return classes.filter(Boolean).join(" ");
 }
 
-export const FREE_SHIPPING_THRESHOLD_CENTS = 7500;
-export const FLAT_SHIPPING_CENTS = 699;
+export const FREE_SHIPPING_THRESHOLD_CENTS = 7_500_000;
+export const FLAT_SHIPPING_CENTS = 250_000;
 
-export function computeCartTotals(items: CartItem[]): CartTotals {
+function defaultShippingCents(subtotalCents: number): number {
+  return subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
+    ? 0
+    : FLAT_SHIPPING_CENTS;
+}
+
+/** Shipping for a subtotal under a chosen delivery option. */
+export function resolveShippingCents(
+  subtotalCents: number,
+  option: DeliveryOption
+): number {
+  if (
+    option.freeThresholdCents !== undefined &&
+    subtotalCents >= option.freeThresholdCents
+  ) {
+    return 0;
+  }
+  return option.priceCents;
+}
+
+export function computeCartTotals(
+  items: CartItem[],
+  delivery?: DeliveryOption
+): CartTotals {
   const subtotalCents = items.reduce(
     (sum, item) => sum + item.priceCents * item.quantity,
     0
   );
-  const shippingCents =
-    subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
-      ? 0
-      : FLAT_SHIPPING_CENTS;
+  const shippingCents = delivery
+    ? resolveShippingCents(subtotalCents, delivery)
+    : defaultShippingCents(subtotalCents);
   return { subtotalCents, shippingCents, totalCents: subtotalCents + shippingCents };
 }
 
