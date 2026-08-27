@@ -3,28 +3,40 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  ArrowRight,
   BadgeCheck,
   ChevronRight,
   MapPin,
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Star,
   Store,
   Truck,
 } from "lucide-react";
 import { AddToCartPanel } from "@/components/products/AddToCartPanel";
 import { ProductGrid } from "@/components/products/ProductCard";
+import { ProductQandA } from "@/components/products/ProductQandA";
 import { RatingStars } from "@/components/products/RatingStars";
+import { RatingSummary } from "@/components/products/RatingSummary";
+import { RecentlyViewedRail } from "@/components/products/RecentlyViewedRail";
+import { RecordProductView } from "@/components/products/RecordProductView";
 import {
   categories,
   getAllProducts,
   getProductById,
+  getQandAForProduct,
   getRelatedProducts,
   getReviewsForProduct,
   getSellerById,
+  getSellerSummary,
 } from "@/lib/data";
 import { containerClass } from "@/lib/ui";
-import { discountPercent, formatPrice } from "@/lib/utils";
+import {
+  discountPercent,
+  formatPrice,
+  MARKET_CONFIG,
+} from "@/lib/utils";
 
 interface ProductPageProps {
   params: Promise<{ id: string }>;
@@ -70,10 +82,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
     product.category;
   const discount = discountPercent(product.priceCents, product.compareAtPriceCents);
   const seller = product.sellerId ? getSellerById(product.sellerId) : undefined;
+  const sellerSummary = seller ? getSellerSummary(seller.id) : undefined;
   const reviews = getReviewsForProduct(product.id);
+  const questions = getQandAForProduct(product.id);
 
   return (
     <div className={containerClass}>
+      <RecordProductView productId={product.id} />
       <nav aria-label="Breadcrumb" className="pt-6">
         <ol className="flex flex-wrap items-center gap-1.5 text-sm text-zinc-500">
           <li>
@@ -153,6 +168,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <div className="mt-3">
             <RatingStars rating={product.rating} reviewCount={product.reviewCount} size="md" />
+            <a
+              href="#reviews-heading"
+              className="mt-1 inline-block text-xs font-semibold text-zinc-500 underline decoration-zinc-300 underline-offset-4 transition hover:text-brand-700 hover:decoration-brand-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+            >
+              See customer reviews
+            </a>
           </div>
 
           <div className="mt-5 flex flex-wrap items-baseline gap-3">
@@ -169,7 +190,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <p className="mt-5 leading-7 text-zinc-600">{product.description}</p>
 
           {seller && (
-            <div className="mt-6 flex items-center gap-3 rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+            <Link
+              href={`/sellers/${seller.id}`}
+              className="group/seller mt-6 flex items-center gap-3 rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-200 transition hover:bg-white hover:ring-brand-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+            >
               <span
                 aria-hidden="true"
                 className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-violet-500 text-sm font-extrabold text-white"
@@ -191,9 +215,25 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     <BadgeCheck aria-hidden="true" className="size-3 text-emerald-600" />
                     Verified seller since {seller.joinedYear}
                   </span>
+                  {sellerSummary && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Star
+                          aria-hidden="true"
+                          className="size-3 fill-amber-400 text-amber-400"
+                        />
+                        {sellerSummary.avgRating.toFixed(1)} store rating
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
-            </div>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-300 transition group-hover/seller:bg-brand-50 group-hover/seller:text-brand-700 group-hover/seller:ring-brand-200">
+                Visit store
+                <ArrowRight aria-hidden="true" className="size-3" />
+              </span>
+            </Link>
           )}
 
           <div className="mt-7">
@@ -223,43 +263,82 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      <section aria-labelledby="reviews-heading" className="border-t border-zinc-200 py-12">
-        <h2 id="reviews-heading" className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
+      <section
+        aria-labelledby="reviews-heading"
+        className="border-t border-zinc-200 py-12"
+      >
+        <h2
+          id="reviews-heading"
+          className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl"
+        >
           Customer reviews
         </h2>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <RatingStars rating={product.rating} reviewCount={product.reviewCount} size="md" />
-        </div>
 
-        <ul className="mt-8 grid gap-4 lg:grid-cols-3">
-          {reviews.map((review) => (
-            <li
-              key={review.id}
-              className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
-            >
-              <RatingStars rating={review.rating} />
-              <h3 className="mt-3 font-semibold text-zinc-900">{review.title}</h3>
-              <p className="mt-1.5 flex-1 text-sm leading-6 text-zinc-600">
-                {review.body}
+        <div className="mt-7 grid gap-6 lg:grid-cols-[20rem_1fr] lg:gap-10">
+          <RatingSummary
+            rating={product.rating}
+            reviewCount={product.reviewCount}
+            ratingDistribution={product.ratingDistribution}
+            className="h-fit lg:sticky lg:top-24"
+          />
+
+          <div>
+            {reviews.length > 0 ? (
+              <ul className="space-y-4">
+                {reviews.map((review) => (
+                  <li
+                    key={review.id}
+                    className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <RatingStars rating={review.rating} />
+                      <time
+                        dateTime={review.createdAt}
+                        className="text-xs tabular-nums text-zinc-400"
+                      >
+                        {new Intl.DateTimeFormat(MARKET_CONFIG.locale, {
+                          dateStyle: "long",
+                        }).format(new Date(review.createdAt))}
+                      </time>
+                    </div>
+                    <h3 className="mt-3 font-semibold text-zinc-900">
+                      {review.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-6 text-zinc-600">
+                      {review.body}
+                    </p>
+                    <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-400">
+                      <span className="font-semibold text-zinc-600">
+                        {review.author}
+                      </span>
+                      {review.location && <span>{review.location}</span>}
+                      {review.verifiedPurchase && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">
+                          <BadgeCheck aria-hidden="true" className="size-3.5" />
+                          Verified purchase
+                        </span>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-2xl bg-white p-8 text-center text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-200">
+                No written reviews for this product yet — be among the first to
+                share once review submissions open.
               </p>
-              <p className="mt-4 flex flex-wrap items-center gap-x-2 text-xs text-zinc-400">
-                <span className="font-semibold text-zinc-600">{review.author}</span>
-                {review.location && <span>{review.location}</span>}
-                {review.verifiedPurchase && (
-                  <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
-                    <BadgeCheck aria-hidden="true" className="size-3.5" />
-                    Verified purchase
-                  </span>
-                )}
-              </p>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-6 text-xs leading-5 text-zinc-400">
-          Reviews are shown from recent verified NeedCentral orders. Full review
-          history arrives with customer accounts.
-        </p>
+            )}
+
+            <p className="mt-5 text-xs leading-5 text-zinc-400">
+              Reviews shown are from recent verified NeedCentral orders across
+              our global community. Full review histories, photos and
+              submission tools arrive with customer accounts.
+            </p>
+          </div>
+        </div>
       </section>
+
+      <ProductQandA questions={questions} />
 
       {relatedProducts.length > 0 && (
         <section aria-labelledby="related-heading" className="border-t border-zinc-200 py-12">
@@ -271,6 +350,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
         </section>
       )}
+
+      <RecentlyViewedRail excludeId={product.id} className="pb-16" />
     </div>
   );
 }

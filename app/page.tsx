@@ -5,6 +5,7 @@ import { DealBanner } from "@/components/home/DealBanner";
 import { Hero } from "@/components/home/Hero";
 import { Newsletter } from "@/components/home/Newsletter";
 import { ProductGrid } from "@/components/products/ProductCard";
+import { RecentlyViewedRail } from "@/components/products/RecentlyViewedRail";
 import {
   countAfricanMadeProducts,
   getAfricanMadeProducts,
@@ -117,6 +118,8 @@ export default function HomePage() {
           <ProductGrid products={trendingProducts} />
         </div>
       </section>
+
+      <RecentlyViewedRail showFallback className={containerClass} />
 
       <DealBanner />
 

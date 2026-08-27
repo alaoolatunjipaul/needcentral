@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Check, ShoppingBag, Zap } from "lucide-react";
+import { Check, Heart, ShoppingBag, Zap } from "lucide-react";
 import { QuantityStepper } from "@/components/products/QuantityStepper";
 import { useCart } from "@/components/cart/CartProvider";
+import { useWishlist } from "@/components/wishlist/WishlistProvider";
 import { btnSecondary } from "@/lib/ui";
 import type { Product } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface AddToCartPanelProps {
   product: Product;
@@ -14,6 +16,7 @@ interface AddToCartPanelProps {
 
 export function AddToCartPanel({ product }: AddToCartPanelProps) {
   const { addItem } = useCart();
+  const { isSaved, toggle } = useWishlist();
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
@@ -27,6 +30,7 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
 
   const outOfStock = product.stock <= 0;
   const maxQuantity = Math.min(product.stock, 10);
+  const saved = isSaved(product.id);
 
   function handleAdd() {
     addItem(product, quantity);
@@ -90,6 +94,23 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
         >
           <Zap aria-hidden="true" className="size-4 text-amber-500" />
           Buy now
+        </button>
+        <button
+          type="button"
+          onClick={() => toggle(product)}
+          aria-pressed={saved}
+          className={cn(
+            "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold ring-1 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98]",
+            saved
+              ? "bg-rose-50 text-rose-600 ring-rose-200 hover:bg-rose-100"
+              : "bg-white text-zinc-900 ring-zinc-300 hover:bg-zinc-50 hover:ring-zinc-400"
+          )}
+        >
+          <Heart
+            aria-hidden="true"
+            className={cn("size-4", saved && "fill-rose-500 text-rose-500")}
+          />
+          {saved ? "Saved" : "Save for later"}
         </button>
       </div>
     </div>

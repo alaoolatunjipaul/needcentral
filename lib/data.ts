@@ -5,13 +5,16 @@ import {
   type Category,
   type CategoryId,
   type CollectionId,
+  type Coupon,
   type DeliveryOption,
   type Product,
   type ProductQuery,
   type ProductQueryResult,
   type Promotion,
+  type Question,
   type Review,
   type Seller,
+  type SellerSummary,
   type SortOption,
 } from "@/types";
 
@@ -851,6 +854,29 @@ export const promotions: Promotion[] = [
   },
 ];
 
+/**
+ * Demo coupons redeemable in the simulated cart/checkout flow. Codes are
+ * matched case-insensitively; real validation arrives with the backend.
+ */
+export const coupons: Coupon[] = [
+  {
+    code: "WELCOME10",
+    description: "10% off your first NeedCentral order",
+    percentOff: 10,
+  },
+  {
+    code: "NAIJA15",
+    description: "15% off orders over ₦100,000",
+    percentOff: 15,
+    minSubtotalCents: 10_000_000,
+  },
+];
+
+export function getCouponByCode(code: string): Coupon | undefined {
+  const normalized = code.trim().toUpperCase();
+  return coupons.find((coupon) => coupon.code === normalized);
+}
+
 export function getAllProducts(): Product[] {
   return products;
 }
@@ -895,6 +921,43 @@ export function getCategoryCounts(): Record<CategoryId | "all", number> {
   for (const id of CATEGORY_IDS) counts[id] = 0;
   for (const product of products) counts[product.category] += 1;
   return counts;
+}
+
+export function getSellerProducts(sellerId: string): Product[] {
+  return products.filter((product) => product.sellerId === sellerId);
+}
+
+/**
+ * Aggregated storefront stats for every seller, ordered as defined in the
+ * sellers array (Nigerian and African sellers first, then international).
+ */
+export function getSellerSummaries(): SellerSummary[] {
+  return sellers.map((seller) => {
+    const sellerProducts = getSellerProducts(seller.id);
+    const reviewCount = sellerProducts.reduce(
+      (sum, product) => sum + product.reviewCount,
+      0
+    );
+    const avgRating = sellerProducts.length
+      ? sellerProducts.reduce((sum, product) => sum + product.rating, 0) /
+        sellerProducts.length
+      : 0;
+    return {
+      seller,
+      productCount: sellerProducts.length,
+      avgRating,
+      reviewCount,
+      africanMadeCount: sellerProducts.filter(
+        (product) => product.origin?.madeInAfrica
+      ).length,
+    };
+  });
+}
+
+export function getSellerSummary(sellerId: string): SellerSummary | undefined {
+  const seller = getSellerById(sellerId);
+  if (!seller) return undefined;
+  return getSellerSummaries().find((summary) => summary.seller.id === sellerId);
 }
 
 /**
@@ -1087,6 +1150,153 @@ export function getReviewsForProduct(productId: string, count = 3): Review[] {
     });
   }
   return reviews;
+}
+
+interface QASeed {
+  author: string;
+  question: string;
+  createdAt: string;
+  answer?: {
+    author: string;
+    body: string;
+    createdAt: string;
+  };
+}
+
+const QA_SEEDS: QASeed[] = [
+  {
+    author: "Chidinma E.",
+    question: "Is this product available for pickup in Lagos?",
+    createdAt: "2026-07-20T08:15:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Yes, pickup is available at our Ikeja store. Select 'Pickup station' at checkout to see available locations and collect the same week.",
+      createdAt: "2026-07-20T14:30:00.000Z",
+    },
+  },
+  {
+    author: "Olumide K.",
+    question: "Does it come with a warranty?",
+    createdAt: "2026-06-15T11:00:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "All electronics come with a 12-month manufacturer warranty. Keep your order confirmation email as proof of purchase for any warranty claims.",
+      createdAt: "2026-06-15T16:45:00.000Z",
+    },
+  },
+  {
+    author: "Amina B.",
+    question: "How long does delivery take to Abuja?",
+    createdAt: "2026-07-05T09:30:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Standard delivery to Abuja takes 3-5 business days. Express delivery gets it there in 1-2 business days. Both options are available at checkout.",
+      createdAt: "2026-07-05T13:10:00.000Z",
+    },
+  },
+  {
+    author: "Kemi A.",
+    question: "Can I return this if it doesn't meet my expectations?",
+    createdAt: "2026-06-28T10:20:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Absolutely. We offer a 30-day no-questions-asked return policy. Contact support through your order page and we will arrange a free return pickup.",
+      createdAt: "2026-06-28T15:00:00.000Z",
+    },
+  },
+  {
+    author: "Tunde O.",
+    question: "Is the colour exactly as shown in the photos?",
+    createdAt: "2026-07-12T14:45:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "We photograph every product in natural light. Minor colour variation is possible depending on your screen settings, but we stand by the accuracy of our images.",
+      createdAt: "2026-07-13T09:00:00.000Z",
+    },
+  },
+  {
+    author: "Ngozi I.",
+    question: "Do you ship internationally?",
+    createdAt: "2026-05-30T07:10:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Yes, we ship to over 20 countries. International delivery times vary by destination — typically 7-14 business days. Duties and taxes are the buyer's responsibility.",
+      createdAt: "2026-05-30T12:00:00.000Z",
+    },
+  },
+  {
+    author: "Bolaji M.",
+    question: "What payment methods do you accept?",
+    createdAt: "2026-06-20T16:30:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "We accept debit cards, bank transfers and USSD payments. All transactions are processed securely. Full payment details appear at checkout.",
+      createdAt: "2026-06-21T08:15:00.000Z",
+    },
+  },
+  {
+    author: "Fatima S.",
+    question: "Can I buy this as a gift and have it shipped to a different address?",
+    createdAt: "2026-07-18T13:00:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Of course. Enter the recipient's address in the shipping form at checkout. We do not include pricing information in the package.",
+      createdAt: "2026-07-18T17:30:00.000Z",
+    },
+  },
+  {
+    author: "Emeka U.",
+    question: "Is this product currently in stock?",
+    createdAt: "2026-08-01T08:45:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Stock levels update in real time. If the 'Add to cart' button is active, the item is available. Out-of-stock items show a clear label on the product page.",
+      createdAt: "2026-08-01T11:20:00.000Z",
+    },
+  },
+  {
+    author: "Halima R.",
+    question: "How do I track my order after placing it?",
+    createdAt: "2026-07-25T10:00:00.000Z",
+    answer: {
+      author: "Seller",
+      body: "Once your order is confirmed, visit /orders to see the current status and estimated delivery date. You will also receive email updates at each stage.",
+      createdAt: "2026-07-25T14:40:00.000Z",
+    },
+  },
+];
+
+const QA_POOL_SIZE = QA_SEEDS.length;
+
+/** Stable mock Q&A for a product (no backend required). */
+export function getQandAForProduct(
+  productId: string,
+  count = 3
+): Question[] {
+  const start = stableHash(productId);
+  const questions: Question[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const seed = QA_SEEDS[(start + index * 7) % QA_POOL_SIZE];
+    const question: Question = {
+      id: `${productId}-qa-${index + 1}`,
+      productId,
+      author: seed.author,
+      body: seed.question,
+      createdAt: seed.createdAt,
+      answers: seed.answer
+        ? [
+            {
+              id: `${productId}-qa-${index + 1}-a1`,
+              author: seed.answer.author,
+              body: seed.answer.body,
+              createdAt: seed.answer.createdAt,
+            },
+          ]
+        : [],
+    };
+    questions.push(question);
+  }
+  return questions;
 }
 
 function firstParam(

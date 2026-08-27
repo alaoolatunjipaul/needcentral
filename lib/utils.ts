@@ -1,4 +1,4 @@
-import type { CartItem, CartTotals, DeliveryOption } from "@/types";
+import type { CartItem, CartTotals, Coupon, DeliveryOption } from "@/types";
 
 /**
  * Launch market configuration. Kept in one place so a later multi-currency /
@@ -76,4 +76,34 @@ export function discountPercent(
     return null;
   }
   return Math.round((1 - priceCents / compareAtPriceCents) * 100);
+}
+
+/**
+ * Whether a simulated coupon currently meets its minimum-spend requirement.
+ * Shipping and the free-delivery threshold keep using the pre-discount
+ * subtotal, so applying a coupon never changes delivery pricing.
+ */
+export function couponQualifies(
+  subtotalCents: number,
+  coupon: Coupon
+): boolean {
+  return (
+    coupon.minSubtotalCents === undefined ||
+    subtotalCents >= coupon.minSubtotalCents
+  );
+}
+
+/** Simulated discount for a subtotal; 0 while the minimum spend is unmet. */
+export function couponDiscountCents(
+  subtotalCents: number,
+  coupon: Coupon
+): number {
+  if (!couponQualifies(subtotalCents, coupon)) return 0;
+  if (coupon.percentOff !== undefined) {
+    return Math.round((subtotalCents * coupon.percentOff) / 100);
+  }
+  if (coupon.amountOffCents !== undefined) {
+    return Math.min(coupon.amountOffCents, subtotalCents);
+  }
+  return 0;
 }

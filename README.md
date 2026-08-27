@@ -24,10 +24,13 @@ npx tsc --noEmit # type check
 
 - **Home** — hero section, category grid, featured products, Nigerian/African-made collection, trending products, deal-of-the-week promo, newsletter CTA
 - **Products** — full catalogue with URL-driven search (debounced), category filter pills, a Nigerian / African Made collection filter and sorting (price, rating, name); shareable links like `/products?category=fashion&sort=price-asc` or `/products?collection=african-made`
-- **Product details** — dynamic route `/products/[id]`, statically generated for every product, with seller attribution, mock customer reviews, quantity selector, add-to-cart / buy-now, stock states and related products
+- **Product details** — dynamic route `/products/[id]`, statically generated for every product, with seller attribution linking to the seller's storefront, mock customer reviews, quantity selector, add-to-cart / buy-now, stock states and related products
+- **Sellers** — storefront discovery at `/sellers` and statically generated storefronts at `/sellers/[id]` with verified badges, locations, aggregated ratings and each store's full catalogue
 - **Categories** — discovery page covering fifteen departments plus the African Made collection
 - **Cart** — add/remove items, quantity controls clamped to stock, subtotal/shipping/total in Naira (₦), free-delivery progress bar, persistent across sessions via `localStorage`
+- **Wishlist** — save-for-later hearts on product cards and detail pages, dedicated `/wishlist` page, persisted via `localStorage` (`needcentral.wishlist.v1`)
 - **Checkout** — simulated frontend-only order flow with delivery options (standard, express, pickup station), Nigeria-default shipping form, order confirmation screen (clearly not a real payment)
+- **Order history** — confirmed orders persist to `localStorage` (`needcentral.orders.v1`) and appear at `/orders` with expandable details: items, quantities, prices, totals, status and estimated delivery
 - Responsive navigation with live cart badge, loading skeletons, custom 404, empty states, accessible controls
 
 ## Routes
@@ -37,9 +40,12 @@ npx tsc --noEmit # type check
 | `/` | Home |
 | `/products` | Catalogue (`?q=`, `?category=`, `?collection=`, `?sort=` query params) |
 | `/products/[id]` | Product detail (statically generated) |
+| `/sellers` | Seller discovery |
+| `/sellers/[id]` | Seller storefront (statically generated) |
 | `/categories` | Category discovery |
 | `/cart` | Shopping cart |
 | `/checkout` | Simulated checkout |
+| `/orders` | Order history (localStorage) |
 
 ## Architecture notes
 

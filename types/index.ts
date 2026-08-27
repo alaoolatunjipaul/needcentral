@@ -56,6 +56,8 @@ export interface Product {
   description: string;
   rating: number;
   reviewCount: number;
+  /** Per-star counts, once verified review data provides them. */
+  ratingDistribution?: RatingDistribution[];
   stock: number;
   featured?: boolean;
   sellerId?: string;
@@ -70,6 +72,18 @@ export interface Seller {
   joinedYear: number;
 }
 
+/**
+ * Derived storefront stats computed from a seller's product catalogue —
+ * sellers do not carry their own rating; it is aggregated from products.
+ */
+export interface SellerSummary {
+  seller: Seller;
+  productCount: number;
+  avgRating: number;
+  reviewCount: number;
+  africanMadeCount: number;
+}
+
 export interface Review {
   id: string;
   productId: string;
@@ -80,6 +94,16 @@ export interface Review {
   body: string;
   createdAt: string;
   verifiedPurchase: boolean;
+}
+
+/**
+ * Per-star review counts for a product (5 → 1). Optional until the backend
+ * supplies verified breakdowns; the UI renders it only when present so mock
+ * data is never embellished.
+ */
+export interface RatingDistribution {
+  stars: number;
+  count: number;
 }
 
 export interface CartItem {
@@ -93,6 +117,21 @@ export interface CartItem {
 
 export interface Cart {
   items: CartItem[];
+}
+
+/**
+ * Client-side snapshot of a product saved for later. Mirrors the cart item
+ * shape minus quantity so the wishlist store stays persistence-friendly.
+ */
+export interface WishlistItem {
+  productId: string;
+  name: string;
+  image: string;
+  priceCents: number;
+}
+
+export interface Wishlist {
+  items: WishlistItem[];
 }
 
 export interface CartTotals {
@@ -191,6 +230,10 @@ export interface Order {
   shippingAddress?: Address;
   placedAtISO: string;
   estimatedDeliveryISO: string;
+  /** Simulated coupon preserved for order history (optional for legacy orders). */
+  couponCode?: string;
+  couponDescription?: string;
+  discountCents?: number;
 }
 
 /**
@@ -203,6 +246,39 @@ export interface Coupon {
   percentOff?: number;
   amountOffCents?: number;
   minSubtotalCents?: number;
+}
+
+/**
+ * Product Q&A — a customer question and its answer(s). Structured like
+ * Review so the same seed-and-hash pattern can produce deterministic
+ * mock data per product without a backend.
+ */
+export interface Answer {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Question {
+  id: string;
+  productId: string;
+  author: string;
+  body: string;
+  createdAt: string;
+  answers: Answer[];
+}
+
+/**
+ * Simulated customer account. Passwords are stored in plain text because
+ * this is a frontend-only demo — real hashing arrives with the backend
+ * projects.
+ */
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
 }
 
 /** Merchandising promotion rendered by the homepage deal banner. */

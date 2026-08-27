@@ -5,15 +5,19 @@ import Link from "next/link";
 import { ArrowRight, ShieldCheck, ShoppingBag, Trash2 } from "lucide-react";
 import { QuantityStepper } from "@/components/products/QuantityStepper";
 import { useCart } from "@/components/cart/CartProvider";
+import { CouponPanel } from "@/components/coupons/CouponPanel";
+import { useCoupons } from "@/components/coupons/CouponProvider";
 import { btnPrimary, btnSecondary, containerClass } from "@/lib/ui";
 import {
   computeCartTotals,
+  couponDiscountCents,
   formatPrice,
   FREE_SHIPPING_THRESHOLD_CENTS,
 } from "@/lib/utils";
 
 export default function CartPage() {
   const { items, itemCount, setQuantity, removeItem } = useCart();
+  const { coupon } = useCoupons();
   const totals = computeCartTotals(items);
   const isEmpty = items.length === 0;
   const remainingForFreeShipping = FREE_SHIPPING_THRESHOLD_CENTS - totals.subtotalCents;
@@ -21,6 +25,9 @@ export default function CartPage() {
     100,
     (totals.subtotalCents / FREE_SHIPPING_THRESHOLD_CENTS) * 100
   );
+  const discountCents =
+    coupon !== null ? couponDiscountCents(totals.subtotalCents, coupon) : 0;
+  const finalTotalCents = totals.totalCents - discountCents;
 
   return (
     <div className={containerClass}>
@@ -119,6 +126,8 @@ export default function CartPage() {
             <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
               <h2 className="text-lg font-bold text-zinc-900">Order summary</h2>
 
+              <CouponPanel className="mt-4" />
+
               <dl className="mt-5 space-y-3 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-zinc-500">Subtotal</dt>
@@ -126,6 +135,16 @@ export default function CartPage() {
                     {formatPrice(totals.subtotalCents)}
                   </dd>
                 </div>
+                {discountCents > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-emerald-600">
+                      Discount{coupon ? ` (${coupon.code})` : ""}
+                    </dt>
+                    <dd className="font-semibold tabular-nums text-emerald-600">
+                      -{formatPrice(discountCents)}
+                    </dd>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <dt className="text-zinc-500">Shipping</dt>
                   <dd
@@ -144,7 +163,7 @@ export default function CartPage() {
                   <div className="flex justify-between text-base">
                     <dt className="font-bold text-zinc-900">Total</dt>
                     <dd className="font-extrabold tabular-nums text-zinc-950">
-                      {formatPrice(totals.totalCents)}
+                      {formatPrice(finalTotalCents)}
                     </dd>
                   </div>
                 </div>

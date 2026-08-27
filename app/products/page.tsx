@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ProductGrid } from "@/components/products/ProductCard";
 import { ProductToolbar } from "@/components/products/ProductToolbar";
+import { RecentlyViewedRail } from "@/components/products/RecentlyViewedRail";
 import { categories, filterAndSortProducts, getCategoryCounts, parseProductQuery } from "@/lib/data";
 import { containerClass } from "@/lib/ui";
 
@@ -49,6 +50,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </div>
         )}
       </div>
+
+      <RecentlyViewedRail className="pb-16" />
     </div>
   );
 }

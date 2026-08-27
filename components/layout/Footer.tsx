@@ -12,6 +12,9 @@ const SITE_LINKS = [
   { href: "/products", label: "All products" },
   { href: "/categories", label: "All categories" },
   { href: "/products?collection=african-made", label: "Nigerian / African Made" },
+  { href: "/sellers", label: "Meet our sellers" },
+  { href: "/wishlist", label: "Saved items" },
+  { href: "/orders", label: "Order history" },
   { href: "/cart", label: "Your cart" },
   { href: "/checkout", label: "Checkout" },
 ];

@@ -14,10 +14,14 @@ import {
   User,
 } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
+import { CouponPanel } from "@/components/coupons/CouponPanel";
+import { useCoupons } from "@/components/coupons/CouponProvider";
+import { useOrders } from "@/components/orders/OrdersProvider";
 import { getDeliveryOptionById, getDeliveryOptions } from "@/lib/data";
-import { btnPrimary, containerClass, inputBase } from "@/lib/ui";
+import { btnPrimary, btnSecondary, containerClass, inputBase } from "@/lib/ui";
 import {
   computeCartTotals,
+  couponDiscountCents,
   formatPrice,
   FREE_SHIPPING_THRESHOLD_CENTS,
   MARKET_CONFIG,
@@ -47,6 +51,8 @@ function generateOrderId(): string {
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart();
+  const { addOrder } = useOrders();
+  const { coupon } = useCoupons();
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [deliveryId, setDeliveryId] = useState<DeliveryOptionId>("standard");
 
@@ -54,6 +60,9 @@ export default function CheckoutPage() {
   const selectedDelivery =
     getDeliveryOptionById(deliveryId) ?? deliveryOptions[0];
   const totals = computeCartTotals(items, selectedDelivery);
+  const discountCents =
+    coupon !== null ? couponDiscountCents(totals.subtotalCents, coupon) : 0;
+  const finalTotalCents = totals.totalCents - discountCents;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,14 +97,22 @@ export default function CheckoutPage() {
       items: orderItems,
       subtotalCents: totals.subtotalCents,
       shippingCents: totals.shippingCents,
-      totalCents: totals.totalCents,
+      totalCents: finalTotalCents,
       status: "confirmed",
       deliveryOptionId: selectedDelivery.id,
       shippingAddress: address,
       placedAtISO,
       estimatedDeliveryISO,
+      ...(coupon !== null && discountCents > 0
+        ? {
+            couponCode: coupon.code,
+            couponDescription: coupon.description,
+            discountCents,
+          }
+        : {}),
     };
 
+    addOrder(order);
     setPlacedOrder(order);
     clearCart();
     window.scrollTo({ top: 0 });
@@ -177,6 +194,12 @@ export default function CheckoutPage() {
             <li className="flex items-center justify-between p-3 text-sm">
               <span className="font-medium text-zinc-500">
                 Subtotal + delivery ({placedOrder.shippingCents === 0 ? "free" : formatPrice(placedOrder.shippingCents)})
+                {placedOrder.discountCents !== undefined &&
+                  placedOrder.discountCents > 0 && (
+                    <span className="block text-emerald-600">
+                      {placedOrder.couponCode} discount -{formatPrice(placedOrder.discountCents)}
+                    </span>
+                  )}
               </span>
               <span className="font-bold tabular-nums text-zinc-950">
                 {formatPrice(placedOrder.totalCents)} paid
@@ -189,10 +212,15 @@ export default function CheckoutPage() {
             processed and nothing will actually ship.
           </p>
 
-          <Link href="/products" className={`${btnPrimary} mt-7`}>
-            Continue shopping
-            <ArrowRight aria-hidden="true" className="size-4" />
-          </Link>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link href="/orders" className={btnSecondary}>
+              View your orders
+            </Link>
+            <Link href="/products" className={btnPrimary}>
+              Continue shopping
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -496,6 +524,7 @@ export default function CheckoutPage() {
                 </li>
               ))}
             </ul>
+            <CouponPanel className="mt-5" />
             <dl className="mt-5 space-y-3 border-t border-zinc-200 pt-5 text-sm">
               <div className="flex justify-between">
                 <dt className="text-zinc-500">Subtotal</dt>
@@ -503,6 +532,16 @@ export default function CheckoutPage() {
                   {formatPrice(totals.subtotalCents)}
                 </dd>
               </div>
+              {discountCents > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-emerald-600">
+                    Discount{coupon ? ` (${coupon.code})` : ""}
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-emerald-600">
+                    -{formatPrice(discountCents)}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-zinc-500">
                   Delivery{selectedDelivery ? ` · ${selectedDelivery.label}` : ""}
@@ -518,12 +557,12 @@ export default function CheckoutPage() {
               <div className="flex justify-between border-t border-zinc-200 pt-4 text-base">
                 <dt className="font-bold text-zinc-900">Total</dt>
                 <dd className="font-extrabold tabular-nums text-zinc-950">
-                  {formatPrice(totals.totalCents)}
+                  {formatPrice(finalTotalCents)}
                 </dd>
               </div>
             </dl>
             <button type="submit" className={`${btnPrimary} mt-6 w-full`}>
-              Place order · {formatPrice(totals.totalCents)}
+              Place order · {formatPrice(finalTotalCents)}
             </button>
             <Link
               href="/cart"

@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { Menu, Search, ShoppingBag, X } from "lucide-react";
+import { Heart, LogOut, Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useCart } from "@/components/cart/CartProvider";
+import { useWishlist } from "@/components/wishlist/WishlistProvider";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -23,6 +25,8 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { itemCount } = useCart();
+  const { count: savedCount } = useWishlist();
+  const { customer, isAuthenticated, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileQuery, setMobileQuery] = useState("");
 
@@ -106,6 +110,19 @@ export function Header() {
 
         <div className="ml-auto flex items-center gap-1 md:ml-0">
           <Link
+            href="/wishlist"
+            aria-label={`Saved items${savedCount > 0 ? `, ${savedCount} saved` : ""}`}
+            className="relative grid size-10 place-items-center rounded-full text-zinc-700 transition hover:bg-zinc-100 hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          >
+            <Heart aria-hidden="true" className="size-5" />
+            {savedCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 grid min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[11px] font-bold leading-5 text-white ring-2 ring-white">
+                {savedCount > 99 ? "99+" : savedCount}
+              </span>
+            )}
+          </Link>
+
+          <Link
             href="/cart"
             aria-label={`Cart${itemCount > 0 ? `, ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}`}
             className="relative grid size-10 place-items-center rounded-full text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
@@ -117,6 +134,44 @@ export function Header() {
               </span>
             )}
           </Link>
+
+          {isAuthenticated && customer ? (
+            <div className="hidden items-center gap-2 md:flex">
+              <Link
+                href="/account"
+                aria-label={`Account: ${customer.name}`}
+                className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              >
+                <span
+                  aria-hidden="true"
+                  className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-700 ring-1 ring-brand-100"
+                >
+                  {customer.name.charAt(0)}
+                </span>
+                <span className="max-w-[8rem] truncate">{customer.name}</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  signOut();
+                  router.push("/");
+                }}
+                aria-label="Sign out"
+                className="grid size-8 place-items-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              >
+                <LogOut aria-hidden="true" className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/signin"
+              aria-label="Sign in"
+              className="hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-200 transition hover:bg-zinc-50 hover:text-zinc-900 hover:ring-zinc-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 md:inline-flex"
+            >
+              <User aria-hidden="true" className="size-4" />
+              Sign in
+            </Link>
+          )}
 
           <button
             type="button"
@@ -179,6 +234,46 @@ export function Header() {
                 ))}
               </ul>
             </nav>
+            <div className="border-t border-zinc-100 pt-4">
+              {isAuthenticated && customer ? (
+                <div className="space-y-2">
+                  <Link
+                    href="/account"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-base font-medium text-zinc-700 transition hover:bg-zinc-100"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-700 ring-1 ring-brand-100"
+                    >
+                      {customer.name.charAt(0)}
+                    </span>
+                    <span className="truncate">{customer.name}</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      signOut();
+                      setMenuOpen(false);
+                      router.push("/");
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-base font-medium text-rose-600 transition hover:bg-rose-50"
+                  >
+                    <LogOut aria-hidden="true" className="size-5" />
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/signin"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-base font-medium text-zinc-700 transition hover:bg-zinc-100"
+                >
+                  <User aria-hidden="true" className="size-5" />
+                  Sign in
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { QuickAddButton } from "@/components/products/QuickAddButton";
 import { RatingStars } from "@/components/products/RatingStars";
+import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { categories } from "@/lib/data";
 import { cn, discountPercent, formatPrice } from "@/lib/utils";
 import type { Product } from "@/types";
@@ -80,8 +81,13 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         </div>
       </Link>
 
+      <WishlistButton
+        product={product}
+        className="absolute right-3 top-3 opacity-0 transition-opacity duration-200 focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 sm:opacity-100"
+      />
+
       {!outOfStock && (
-        <QuickAddButton product={product} className="absolute right-3 top-3 opacity-0 transition-opacity duration-200 focus-visible:opacity-100 group-hover:opacity-100 sm:opacity-100" />
+        <QuickAddButton product={product} className="absolute bottom-3 right-3 opacity-0 transition-opacity duration-200 focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 sm:opacity-100" />
       )}
     </article>
   );
