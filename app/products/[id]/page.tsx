@@ -17,8 +17,8 @@ import {
 import { AddToCartPanel } from "@/components/products/AddToCartPanel";
 import { ProductGrid } from "@/components/products/ProductCard";
 import { ProductQandA } from "@/components/products/ProductQandA";
+import { ProductReviews } from "@/components/products/ProductReviews";
 import { RatingStars } from "@/components/products/RatingStars";
-import { RatingSummary } from "@/components/products/RatingSummary";
 import { RecentlyViewedRail } from "@/components/products/RecentlyViewedRail";
 import { RecordProductView } from "@/components/products/RecordProductView";
 import {
@@ -35,7 +35,6 @@ import { containerClass } from "@/lib/ui";
 import {
   discountPercent,
   formatPrice,
-  MARKET_CONFIG,
 } from "@/lib/utils";
 
 interface ProductPageProps {
@@ -263,80 +262,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      <section
-        aria-labelledby="reviews-heading"
-        className="border-t border-zinc-200 py-12"
-      >
-        <h2
-          id="reviews-heading"
-          className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl"
-        >
-          Customer reviews
-        </h2>
-
-        <div className="mt-7 grid gap-6 lg:grid-cols-[20rem_1fr] lg:gap-10">
-          <RatingSummary
-            rating={product.rating}
-            reviewCount={product.reviewCount}
-            ratingDistribution={product.ratingDistribution}
-            className="h-fit lg:sticky lg:top-24"
-          />
-
-          <div>
-            {reviews.length > 0 ? (
-              <ul className="space-y-4">
-                {reviews.map((review) => (
-                  <li
-                    key={review.id}
-                    className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <RatingStars rating={review.rating} />
-                      <time
-                        dateTime={review.createdAt}
-                        className="text-xs tabular-nums text-zinc-400"
-                      >
-                        {new Intl.DateTimeFormat(MARKET_CONFIG.locale, {
-                          dateStyle: "long",
-                        }).format(new Date(review.createdAt))}
-                      </time>
-                    </div>
-                    <h3 className="mt-3 font-semibold text-zinc-900">
-                      {review.title}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-6 text-zinc-600">
-                      {review.body}
-                    </p>
-                    <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-400">
-                      <span className="font-semibold text-zinc-600">
-                        {review.author}
-                      </span>
-                      {review.location && <span>{review.location}</span>}
-                      {review.verifiedPurchase && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">
-                          <BadgeCheck aria-hidden="true" className="size-3.5" />
-                          Verified purchase
-                        </span>
-                      )}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="rounded-2xl bg-white p-8 text-center text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-200">
-                No written reviews for this product yet — be among the first to
-                share once review submissions open.
-              </p>
-            )}
-
-            <p className="mt-5 text-xs leading-5 text-zinc-400">
-              Reviews shown are from recent verified NeedCentral orders across
-              our global community. Full review histories, photos and
-              submission tools arrive with customer accounts.
-            </p>
-          </div>
-        </div>
-      </section>
+      <ProductReviews
+        productId={product.id}
+        seedReviews={reviews}
+        baseRating={product.rating}
+        baseReviewCount={product.reviewCount}
+      />
 
       <ProductQandA productId={product.id} seedQuestions={questions} />
 
