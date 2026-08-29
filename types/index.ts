@@ -94,6 +94,8 @@ export interface Review {
   body: string;
   createdAt: string;
   verifiedPurchase: boolean;
+  /** Optional user-submitted photos stored as data URLs (localStorage demo). */
+  images?: string[];
 }
 
 /**

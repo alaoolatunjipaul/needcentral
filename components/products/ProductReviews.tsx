@@ -3,14 +3,18 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   useTransition,
 } from "react";
+import Image from "next/image";
 import {
   AlertCircle,
+  Camera,
   CheckCircle2,
   PenLine,
   Star,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { RatingStars } from "@/components/products/RatingStars";
@@ -21,11 +25,20 @@ import type { Review } from "@/types";
 const STORAGE_KEY = "needcentral.reviews.v1";
 const MAX_TITLE_LENGTH = 120;
 const MAX_BODY_LENGTH = 2000;
+const MAX_PHOTOS = 3;
+const MAX_PHOTO_SIZE_BYTES = 500_000;
 
 function formatDate(iso: string): string {
   return new Intl.DateTimeFormat(MARKET_CONFIG.locale, {
     dateStyle: "long",
   }).format(new Date(iso));
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${Math.round(bytes / 1024)} KB`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -179,6 +192,9 @@ function WriteReviewForm({ productId, addReview }: WriteReviewFormProps) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [name, setName] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -188,6 +204,63 @@ function WriteReviewForm({ productId, addReview }: WriteReviewFormProps) {
   const bodyRemaining = MAX_BODY_LENGTH - body.length;
   const isOverLimit =
     title.length > MAX_TITLE_LENGTH || body.length > MAX_BODY_LENGTH;
+
+  function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    setPhotoError(null);
+    if (files.length === 0) return;
+
+    const remaining = MAX_PHOTOS - photos.length;
+    if (remaining <= 0) {
+      setPhotoError(`You can add up to ${MAX_PHOTOS} photos.`);
+      event.target.value = "";
+      return;
+    }
+
+    for (const file of files.slice(0, remaining)) {
+      if (!file.type.startsWith("image/")) {
+        setPhotoError(`"${file.name}" is not an image file. Only images are supported.`);
+        continue;
+      }
+      if (file.size > MAX_PHOTO_SIZE_BYTES) {
+        setPhotoError(
+          `"${file.name}" is too large — each photo must be under ${formatBytes(
+            MAX_PHOTO_SIZE_BYTES
+          )}.`
+        );
+      }
+    }
+
+    const validFiles = files
+      .slice(0, remaining)
+      .filter(
+        (file) =>
+          file.type.startsWith("image/") && file.size <= MAX_PHOTO_SIZE_BYTES
+      );
+
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setPhotos((prev) => {
+          if (prev.length >= MAX_PHOTOS) return prev;
+          return [...prev, dataUrl];
+        });
+      };
+      reader.onerror = () => {
+        setPhotoError(
+          `Could not read "${file.name}". Please try a different image.`
+        );
+      };
+      reader.readAsDataURL(file);
+    });
+
+    event.target.value = "";
+  }
+
+  function removePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function validate(): string | null {
     if (rating < 1 || rating > 5) return "Please select a star rating.";
@@ -207,6 +280,7 @@ function WriteReviewForm({ productId, addReview }: WriteReviewFormProps) {
     event.preventDefault();
     setError(null);
     setSuccess(false);
+    setPhotoError(null);
 
     const validationError = validate();
     if (validationError) {
@@ -222,10 +296,12 @@ function WriteReviewForm({ productId, addReview }: WriteReviewFormProps) {
         body: body.trim(),
         location: undefined,
         verifiedPurchase: isAuthenticated,
+        images: photos.length > 0 ? photos : undefined,
       });
       setRating(0);
       setTitle("");
       setBody("");
+      setPhotos([]);
       if (!isAuthenticated) setName("");
       setSuccess(true);
       setTimeout(() => setSuccess(false), 4000);
@@ -322,6 +398,75 @@ function WriteReviewForm({ productId, addReview }: WriteReviewFormProps) {
             ? `${bodyRemaining} characters remaining`
             : `${Math.abs(bodyRemaining)} characters over limit`}
         </span>
+      </div>
+
+      <div className="mt-4">
+        <span className="block text-sm font-medium text-zinc-700">
+          Photos <span className="font-normal text-zinc-400">(optional)</span>
+        </span>
+        <div className="mt-1.5">
+          <input
+            ref={fileInputRef}
+            id={`review-photos-${productId}`}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handlePhotoChange}
+            className="peer sr-only"
+            aria-describedby={`review-photos-hint-${productId}`}
+          />
+          <label
+            htmlFor={`review-photos-${productId}`}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400 focus-within:ring-2 focus-within:ring-brand-200 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-200"
+          >
+            <Camera aria-hidden="true" className="size-4" />
+            Add photos
+          </label>
+        </div>
+        <span
+          id={`review-photos-hint-${productId}`}
+          className="mt-1 block text-xs text-zinc-400"
+        >
+          Up to {MAX_PHOTOS} photos, {formatBytes(MAX_PHOTO_SIZE_BYTES)} each.
+        </span>
+
+        {photos.length > 0 && (
+          <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {photos.map((photo, index) => (
+              <li
+                key={`photo-${index}`}
+                className="relative aspect-square overflow-hidden rounded-xl ring-1 ring-zinc-200"
+              >
+                <Image
+                  src={photo}
+                  alt={`Selected review photo ${index + 1}`}
+                  fill
+                  unoptimized
+                  sizes="120px"
+                  className="object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(index)}
+                  aria-label={`Remove photo ${index + 1}`}
+                  className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-zinc-900/70 text-white transition hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                  <X aria-hidden="true" className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {photoError && (
+          <div
+            role="alert"
+            className="mt-2 flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200"
+          >
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            {photoError}
+          </div>
+        )}
       </div>
 
       {!isAuthenticated && (
@@ -502,6 +647,25 @@ export function ProductReviews({
                       <p className="mt-1.5 text-sm leading-6 text-zinc-600">
                         {review.body}
                       </p>
+                      {review.images && review.images.length > 0 && (
+                        <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {review.images.map((src, index) => (
+                            <li
+                              key={`${review.id}-img-${index}`}
+                              className="aspect-square overflow-hidden rounded-xl ring-1 ring-zinc-200"
+                            >
+                              <Image
+                                src={src}
+                                alt={`Photo ${index + 1} from ${review.author}'s review`}
+                                fill
+                                unoptimized
+                                sizes="(min-width: 640px) 160px, 25vw"
+                                className="object-cover"
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-400">
                         <span className="font-semibold text-zinc-600">
                           {review.author}
