@@ -10,6 +10,7 @@ import {
   type Product,
   type ProductQuery,
   type ProductQueryResult,
+  type PickupStation,
   type Promotion,
   type Question,
   type Review,
@@ -816,6 +817,9 @@ export const deliveryOptions: DeliveryOption[] = [
     etaMaxDays: 5,
     priceCents: 250_000,
     freeThresholdCents: 7_500_000,
+    crossBorderAvailable: true,
+    crossBorderPriceCents: 2_500_000,
+    crossBorderEtaMaxDays: 12,
   },
   {
     id: "express",
@@ -824,6 +828,9 @@ export const deliveryOptions: DeliveryOption[] = [
     etaMinDays: 1,
     etaMaxDays: 2,
     priceCents: 550_000,
+    crossBorderAvailable: true,
+    crossBorderPriceCents: 4_500_000,
+    crossBorderEtaMaxDays: 6,
   },
   {
     id: "pickup",
@@ -832,6 +839,7 @@ export const deliveryOptions: DeliveryOption[] = [
     etaMinDays: 2,
     etaMaxDays: 3,
     priceCents: 120_000,
+    crossBorderAvailable: false,
   },
 ];
 
@@ -843,6 +851,65 @@ export function getDeliveryOptionById(
   id: DeliveryOption["id"]
 ): DeliveryOption | undefined {
   return deliveryOptions.find((option) => option.id === id);
+}
+
+/**
+ * Domestic pickup points across several Nigerian cities. Countries outside
+ * the launch market can't use pickup — see `crossBorderAvailable`.
+ */
+export const pickupStations: PickupStation[] = [
+  {
+    id: "lagos-victoria-island",
+    city: "Lagos",
+    name: "Victoria Island Point",
+    address: "14 Adeola Odeku Street, Victoria Island, Lagos",
+    etaDays: 2,
+  },
+  {
+    id: "lagos-ikeja",
+    city: "Lagos",
+    name: "Ikeja City Mall Point",
+    address: "Obafemi Awolowo Way, Ikeja, Lagos",
+    etaDays: 2,
+  },
+  {
+    id: "abuja-wuse",
+    city: "Abuja",
+    name: "Wuse Market Point",
+    address: "22 Aminu Kano Crescent, Wuse II, Abuja",
+    etaDays: 3,
+  },
+  {
+    id: "ibadan-bodija",
+    city: "Ibadan",
+    name: "Bodija Hub",
+    address: "9 Secretariat Road, Bodija, Ibadan, Oyo",
+    etaDays: 3,
+  },
+  {
+    id: "port-harcourt-gra",
+    city: "Port Harcourt",
+    name: "GRA Junction Point",
+    address: "5 Forces Avenue, GRA Phase II, Port Harcourt, Rivers",
+    etaDays: 3,
+  },
+  {
+    id: "kano-kantin-kwari",
+    city: "Kano",
+    name: "Kantin Kwari Point",
+    address: "3 Kofar Mata Road, Kantin Kwari, Kano",
+    etaDays: 4,
+  },
+];
+
+export function getPickupStations(): PickupStation[] {
+  return pickupStations;
+}
+
+export function getPickupStationById(
+  id: PickupStation["id"]
+): PickupStation | undefined {
+  return pickupStations.find((station) => station.id === id);
 }
 
 /** Homepage promotional banner configuration. */

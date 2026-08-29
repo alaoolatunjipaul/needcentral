@@ -76,7 +76,9 @@ function OrderCard({ order }: { order: Order }) {
             <span>Placed {formatDate(order.placedAtISO)}</span>
             <span className="inline-flex items-center gap-1">
               <Truck aria-hidden="true" className="size-3.5" />
-              Est. delivery {deliveryDate}
+              Est. {order.pickupStation ? "ready at pickup" : "delivery"}{" "}
+              {deliveryDate}
+              {order.crossBorder && <span aria-hidden="true">· cross-border</span>}
             </span>
           </p>
         </div>
@@ -195,11 +197,27 @@ function OrderCard({ order }: { order: Order }) {
                 </div>
               </dl>
 
-              {address && (
+              {order.pickupStation ? (
                 <div className="rounded-2xl bg-white p-4 text-sm ring-1 ring-zinc-200">
                   <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                     <MapPin aria-hidden="true" className="size-3.5" />
-                    Delivering to
+                    Pickup station
+                  </h4>
+                  <p className="mt-2 leading-6 text-zinc-600">
+                    {order.pickupStation.name}
+                    <br />
+                    {order.pickupStation.address}
+                    <br />
+                    <span className="text-zinc-500">
+                      Ready in about {order.pickupStation.etaDays} days
+                    </span>
+                  </p>
+                </div>
+              ) : address ? (
+                <div className="rounded-2xl bg-white p-4 text-sm ring-1 ring-zinc-200">
+                  <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                    <MapPin aria-hidden="true" className="size-3.5" />
+                    {order.crossBorder ? "Delivering to (cross-border)" : "Delivering to"}
                   </h4>
                   <p className="mt-2 leading-6 text-zinc-600">
                     {address.fullName}
@@ -209,7 +227,7 @@ function OrderCard({ order }: { order: Order }) {
                     {address.country}
                   </p>
                 </div>
-              )}
+              ) : null}
 
               <p className="text-xs leading-5 text-zinc-400">
                 Simulated order — no real payment was processed and nothing will ship.

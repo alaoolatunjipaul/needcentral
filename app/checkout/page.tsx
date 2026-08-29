@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CheckCircle2,
   CreditCard,
+  Globe,
   Lock,
   MapPin,
   ShoppingBag,
@@ -17,16 +18,28 @@ import { useCart } from "@/components/cart/CartProvider";
 import { CouponPanel } from "@/components/coupons/CouponPanel";
 import { useCoupons } from "@/components/coupons/CouponProvider";
 import { useOrders } from "@/components/orders/OrdersProvider";
-import { getDeliveryOptionById, getDeliveryOptions } from "@/lib/data";
+import {
+  getDeliveryOptionById,
+  getDeliveryOptions,
+  getPickupStations,
+} from "@/lib/data";
 import { btnPrimary, btnSecondary, containerClass, inputBase } from "@/lib/ui";
 import {
   computeCartTotals,
   couponDiscountCents,
   formatPrice,
   FREE_SHIPPING_THRESHOLD_CENTS,
+  isCrossBorderCountry,
   MARKET_CONFIG,
+  resolveShippingCents,
 } from "@/lib/utils";
-import type { Address, DeliveryOptionId, Order, OrderItem } from "@/types";
+import type {
+  Address,
+  DeliveryOptionId,
+  Order,
+  OrderItem,
+  PickupStation,
+} from "@/types";
 
 const COUNTRIES = [
   "Nigeria",
@@ -55,27 +68,48 @@ export default function CheckoutPage() {
   const { coupon } = useCoupons();
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [deliveryId, setDeliveryId] = useState<DeliveryOptionId>("standard");
+  const [country, setCountry] = useState<string>(MARKET_CONFIG.country);
+  const [pickupStationId, setPickupStationId] = useState<string>(
+    getPickupStations()[0]?.id ?? ""
+  );
 
-  const deliveryOptions = getDeliveryOptions();
+  const crossBorder = isCrossBorderCountry(country);
+  const deliveryOptions = getDeliveryOptions().filter(
+    (option) => crossBorder !== true || option.crossBorderAvailable === true
+  );
   const selectedDelivery =
-    getDeliveryOptionById(deliveryId) ?? deliveryOptions[0];
-  const totals = computeCartTotals(items, selectedDelivery);
+    getDeliveryOptionById(deliveryId) &&
+    deliveryOptions.some((o) => o.id === deliveryId)
+      ? getDeliveryOptionById(deliveryId)!
+      : deliveryOptions[0];
+  const pickupStations = getPickupStations();
+  const selectedPickupStation: PickupStation | undefined =
+    pickupStations.find((station) => station.id === pickupStationId) ??
+    pickupStations[0];
+  const totals = computeCartTotals(items, selectedDelivery, country);
   const discountCents =
     coupon !== null ? couponDiscountCents(totals.subtotalCents, coupon) : 0;
   const finalTotalCents = totals.totalCents - discountCents;
+  const isPickup =
+    deliveryId === "pickup" && !crossBorder && selectedDelivery?.id === "pickup";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (items.length === 0 || !selectedDelivery) return;
     const data = new FormData(event.currentTarget);
 
-    const address: Address = {
-      fullName: String(data.get("name") ?? ""),
-      street: String(data.get("address") ?? ""),
-      city: String(data.get("city") ?? ""),
-      postalCode: String(data.get("postalCode") ?? ""),
-      country: String(data.get("country") ?? MARKET_CONFIG.country),
-    };
+    const isPickupOrder =
+      selectedDelivery.id === "pickup" && !crossBorder && !!selectedPickupStation;
+
+    const shippingAddress: Address | undefined = isPickupOrder
+      ? undefined
+      : {
+          fullName: String(data.get("name") ?? ""),
+          street: String(data.get("address") ?? ""),
+          city: String(data.get("city") ?? ""),
+          postalCode: String(data.get("postalCode") ?? ""),
+          country: String(data.get("country") ?? MARKET_CONFIG.country),
+        };
 
     const orderItems: OrderItem[] = items.map((item) => ({
       productId: item.productId,
@@ -86,9 +120,15 @@ export default function CheckoutPage() {
     }));
 
     const placedAtISO = new Date().toISOString();
+    const etaMax =
+      crossBorder && selectedDelivery.crossBorderEtaMaxDays !== undefined
+        ? selectedDelivery.crossBorderEtaMaxDays
+        : isPickupOrder
+          ? selectedPickupStation.etaDays
+          : selectedDelivery.etaMaxDays;
     const estimatedDeliveryISO = new Date(
       new Date(placedAtISO).getTime() +
-        selectedDelivery.etaMaxDays * 24 * 60 * 60 * 1000
+        etaMax * 24 * 60 * 60 * 1000
     ).toISOString();
 
     const order: Order = {
@@ -100,7 +140,11 @@ export default function CheckoutPage() {
       totalCents: finalTotalCents,
       status: "confirmed",
       deliveryOptionId: selectedDelivery.id,
-      shippingAddress: address,
+      crossBorder,
+      ...(isPickupOrder && selectedPickupStation
+        ? { pickupStation: selectedPickupStation }
+        : {}),
+      shippingAddress,
       placedAtISO,
       estimatedDeliveryISO,
       ...(coupon !== null && discountCents > 0
@@ -159,10 +203,27 @@ export default function CheckoutPage() {
               <dd className="mt-1 text-sm font-medium text-zinc-900">{deliveryDate}</dd>
               {delivery && (
                 <dd className="mt-0.5 text-xs text-zinc-500">
-                  {delivery.label} · {delivery.etaMinDays}–{delivery.etaMaxDays} days
+                  {delivery.label}
+                  {placedOrder.pickupStation
+                    ? ` · ${placedOrder.pickupStation.city}`
+                    : placedOrder.crossBorder
+                      ? ` · Cross-border (${address?.country ?? ""}) ${delivery.etaMinDays}–${delivery.crossBorderEtaMaxDays ?? delivery.etaMaxDays} days`
+                      : ` · ${delivery.etaMinDays}–${delivery.etaMaxDays} days`}
                 </dd>
               )}
             </div>
+            {placedOrder.pickupStation && (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Pickup station
+                </dt>
+                <dd className="mt-1 text-sm leading-5 text-zinc-700">
+                  {placedOrder.pickupStation.name}
+                  <br />
+                  {placedOrder.pickupStation.address}
+                </dd>
+              </div>
+            )}
             {address && (
               <div className="sm:col-span-2">
                 <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
@@ -283,88 +344,165 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          <section aria-labelledby="shipping-heading" className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
-            <h2 id="shipping-heading" className="flex items-center gap-2 text-lg font-bold text-zinc-900">
+          <section
+            aria-labelledby={
+              isPickup ? "pickup-heading" : "shipping-heading"
+            }
+            className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
+          >
+            <h2
+              id={isPickup ? "pickup-heading" : "shipping-heading"}
+              className="flex items-center gap-2 text-lg font-bold text-zinc-900"
+            >
               <MapPin aria-hidden="true" className="size-5 text-brand-600" />
-              Shipping address
+              {isPickup ? "Pickup station" : "Shipping address"}
             </h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label htmlFor="checkout-name" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Full name
-                </label>
-                <input
-                  id="checkout-name"
-                  name="name"
-                  type="text"
-                  required
-                  autoComplete="name"
-                  placeholder="Chidera Okonkwo"
-                  className={inputBase}
-                />
+
+            {isPickup ? (
+              <div className="mt-5">
+                <p className="text-sm leading-6 text-zinc-500">
+                  Skip the queue — pick up your order from a NeedCentral point
+                  near you. Ready in about{" "}
+                  {selectedPickupStation
+                    ? `${selectedPickupStation.etaDays} days`
+                    : "a few days"}
+                  .
+                </p>
+                <div className="mt-4 grid gap-3">
+                  {pickupStations.map((station) => {
+                    const isSelected = station.id === selectedPickupStation?.id;
+                    return (
+                      <label
+                        key={station.id}
+                        className={`flex items-start gap-3 rounded-xl border p-4 transition focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-600 ${
+                          isSelected
+                            ? "border-brand-600 bg-brand-50/60 ring-1 ring-brand-600"
+                            : "border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="pickupStation"
+                          value={station.id}
+                          checked={isSelected}
+                          onChange={() => setPickupStationId(station.id)}
+                          className="mt-1 size-4 accent-brand-600"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-zinc-900">
+                            {station.name}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
+                            {station.address}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-zinc-400">
+                            Ready in about {station.etaDays} days
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="checkout-address" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Street address
-                </label>
-                <input
-                  id="checkout-address"
-                  name="address"
-                  type="text"
-                  required
-                  autoComplete="street-address"
-                  placeholder="12 Adeola Odeku Street, Victoria Island"
-                  className={inputBase}
-                />
+            ) : (
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label htmlFor="checkout-name" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                    Full name
+                  </label>
+                  <input
+                    id="checkout-name"
+                    name="name"
+                    type="text"
+                    required
+                    autoComplete="name"
+                    placeholder="Chidera Okonkwo"
+                    className={inputBase}
+                  />
+                </div>
+                {crossBorder && (
+                  <div
+                    role="note"
+                    className="sm:col-span-2 flex items-start gap-2 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-brand-100"
+                  >
+                    <Globe aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                    Cross-border delivery to {country} — door delivery takes a
+                    few more days and uses international shipping rates.
+                  </div>
+                )}
+                <div className="sm:col-span-2">
+                  <label htmlFor="checkout-address" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                    Street address
+                  </label>
+                  <input
+                    id="checkout-address"
+                    name="address"
+                    type="text"
+                    required
+                    autoComplete="street-address"
+                    placeholder="12 Adeola Odeku Street, Victoria Island"
+                    className={inputBase}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="checkout-city" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                    City
+                  </label>
+                  <input
+                    id="checkout-city"
+                    name="city"
+                    type="text"
+                    required
+                    autoComplete="address-level2"
+                    placeholder="Lagos"
+                    className={inputBase}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="checkout-postal" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                    Postal code
+                  </label>
+                  <input
+                    id="checkout-postal"
+                    name="postalCode"
+                    type="text"
+                    required
+                    autoComplete="postal-code"
+                    placeholder="101241"
+                    className={inputBase}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="checkout-country" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                    Country
+                  </label>
+                  <select
+                    id="checkout-country"
+                    name="country"
+                    required
+                    autoComplete="country-name"
+                    value={country}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setCountry(next);
+                      if (
+                        isCrossBorderCountry(next) &&
+                        deliveryId === "pickup"
+                      ) {
+                        setDeliveryId("standard");
+                      }
+                    }}
+                    className={inputBase}
+                  >
+                    {COUNTRIES.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label htmlFor="checkout-city" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  City
-                </label>
-                <input
-                  id="checkout-city"
-                  name="city"
-                  type="text"
-                  required
-                  autoComplete="address-level2"
-                  placeholder="Lagos"
-                  className={inputBase}
-                />
-              </div>
-              <div>
-                <label htmlFor="checkout-postal" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Postal code
-                </label>
-                <input
-                  id="checkout-postal"
-                  name="postalCode"
-                  type="text"
-                  required
-                  autoComplete="postal-code"
-                  placeholder="101241"
-                  className={inputBase}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label htmlFor="checkout-country" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Country
-                </label>
-                <select
-                  id="checkout-country"
-                  name="country"
-                  required
-                  autoComplete="country-name"
-                  defaultValue={MARKET_CONFIG.country}
-                  className={inputBase}
-                >
-                  {COUNTRIES.map((country) => (
-                    <option key={country} value={country}>
-                      {country}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            )}
           </section>
 
           <section aria-labelledby="delivery-heading" className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
@@ -377,11 +515,12 @@ export default function CheckoutPage() {
               <div className="grid gap-3">
                 {deliveryOptions.map((option, index) => {
                   const isSelected = option.id === deliveryId;
-                  const price =
-                    option.freeThresholdCents !== undefined &&
-                    totals.subtotalCents >= option.freeThresholdCents
-                      ? 0
-                      : option.priceCents;
+                  const price = resolveShippingCents(
+                    totals.subtotalCents,
+                    option,
+                    country
+                  );
+                  const isFree = price === 0;
                   return (
                     <label
                       key={option.id}
@@ -402,23 +541,24 @@ export default function CheckoutPage() {
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-zinc-900">
                           {option.label}
-                          {index === 0 && (
+                          {index === 0 && !crossBorder && (
                             <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               Popular
                             </span>
                           )}
                         </span>
                         <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
-                          {option.description} · arrives in {option.etaMinDays}–
-                          {option.etaMaxDays} days
+                          {crossBorder && option.crossBorderAvailable
+                            ? `${option.label} to ${country} · arrives in ${option.etaMinDays}–${option.crossBorderEtaMaxDays ?? option.etaMaxDays} days`
+                            : `${option.description} · arrives in ${option.etaMinDays}–${option.etaMaxDays} days`}
                         </span>
                       </span>
                       <span
                         className={`shrink-0 text-sm font-bold tabular-nums ${
-                          price === 0 ? "text-emerald-600" : "text-zinc-900"
+                          isFree ? "text-emerald-600" : "text-zinc-900"
                         }`}
                       >
-                        {price === 0 ? "Free" : formatPrice(price)}
+                        {isFree ? "Free" : formatPrice(price)}
                       </span>
                     </label>
                   );
@@ -426,9 +566,11 @@ export default function CheckoutPage() {
               </div>
             </fieldset>
             <p className="mt-4 text-xs leading-5 text-zinc-500">
-              Standard delivery is free on orders over{" "}
-              {formatPrice(FREE_SHIPPING_THRESHOLD_CENTS)}. Pickup stations in
-              more cities and cross-border delivery are next on our roadmap.
+              {crossBorder
+                ? "Cross-border orders ship internationally at international rates and are not eligible for the domestic free-delivery threshold."
+                : `Standard delivery is free on orders over ${formatPrice(
+                    FREE_SHIPPING_THRESHOLD_CENTS
+                  )}. Pickup is available at NeedCentral points across Lagos, Abuja, Ibadan, Port Harcourt and Kano.`}
             </p>
           </section>
 

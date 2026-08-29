@@ -199,9 +199,32 @@ export interface DeliveryOption {
   description: string;
   etaMinDays: number;
   etaMaxDays: number;
+  /** Domestic (Nigeria) flat price. */
   priceCents: number;
   /** Subtotal at or above which delivery becomes free (standard delivery). */
   freeThresholdCents?: number;
+  /**
+   * Whether this option is offered outside the launch market. Pickup is
+   * intentionally domestic-only.
+   */
+  crossBorderAvailable?: boolean;
+  /** Flat price applied when delivering to a cross-border country. */
+  crossBorderPriceCents?: number;
+  /** Upper ETA bound used for cross-border deliveries (slower than domestic). */
+  crossBorderEtaMaxDays?: number;
+}
+
+/**
+ * A NeedCentral pickup point where customers can collect their order. Pickup
+ * stations are domestic (Nigeria) only and span multiple cities.
+ */
+export interface PickupStation {
+  id: string;
+  city: string;
+  name: string;
+  address: string;
+  /** Estimated days until the order is ready for collection. */
+  etaDays: number;
 }
 
 export type OrderStatus =
@@ -229,6 +252,10 @@ export interface Order {
   totalCents: number;
   status: OrderStatus;
   deliveryOptionId: DeliveryOptionId;
+  /** True when the delivery country is outside the launch market (Nigeria). */
+  crossBorder?: boolean;
+  /** Resolved pickup point for pickup deliveries (domestic only). */
+  pickupStation?: PickupStation;
   shippingAddress?: Address;
   placedAtISO: string;
   estimatedDeliveryISO: string;

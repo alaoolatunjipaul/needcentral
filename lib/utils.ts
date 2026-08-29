@@ -31,17 +31,31 @@ export function cn(
 export const FREE_SHIPPING_THRESHOLD_CENTS = 7_500_000;
 export const FLAT_SHIPPING_CENTS = 250_000;
 
+/** Whether a country is outside the launch market (Nigeria). */
+export function isCrossBorderCountry(country: string): boolean {
+  return country.trim().toLowerCase() !== MARKET_CONFIG.country.toLowerCase();
+}
+
 function defaultShippingCents(subtotalCents: number): number {
   return subtotalCents === 0 || subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS
     ? 0
     : FLAT_SHIPPING_CENTS;
 }
 
-/** Shipping for a subtotal under a chosen delivery option. */
+/**
+ * Shipping for a subtotal under a chosen delivery option. Cross-border
+ * countries use dedicated pricing and never qualify for the domestic
+ * free-delivery threshold.
+ */
 export function resolveShippingCents(
   subtotalCents: number,
-  option: DeliveryOption
+  option: DeliveryOption,
+  country: string = MARKET_CONFIG.country
 ): number {
+  const crossBorder = isCrossBorderCountry(country);
+  if (crossBorder) {
+    return option.crossBorderPriceCents ?? option.priceCents;
+  }
   if (
     option.freeThresholdCents !== undefined &&
     subtotalCents >= option.freeThresholdCents
@@ -53,14 +67,15 @@ export function resolveShippingCents(
 
 export function computeCartTotals(
   items: CartItem[],
-  delivery?: DeliveryOption
+  delivery?: DeliveryOption,
+  country: string = MARKET_CONFIG.country
 ): CartTotals {
   const subtotalCents = items.reduce(
     (sum, item) => sum + item.priceCents * item.quantity,
     0
   );
   const shippingCents = delivery
-    ? resolveShippingCents(subtotalCents, delivery)
+    ? resolveShippingCents(subtotalCents, delivery, country)
     : defaultShippingCents(subtotalCents);
   return { subtotalCents, shippingCents, totalCents: subtotalCents + shippingCents };
 }
