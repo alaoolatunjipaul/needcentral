@@ -338,7 +338,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </section>
 
-      <ProductQandA questions={questions} />
+      <ProductQandA productId={product.id} seedQuestions={questions} />
 
       {relatedProducts.length > 0 && (
         <section aria-labelledby="related-heading" className="border-t border-zinc-200 py-12">
