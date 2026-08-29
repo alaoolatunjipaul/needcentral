@@ -1,59 +1,175 @@
-# NeedCentral — Online Marketplace
+# NeedCentral
 
-A production-quality demo marketplace built with **Next.js (App Router), TypeScript, React and Tailwind CSS**. Browse a curated catalogue, search and filter products, view rich product detail pages and manage a fully client-side shopping cart with a simulated checkout.
+## Project description
 
-NeedCentral is a **global marketplace born in Nigeria** — starting with Nigerian sellers, prices and logistics, proudly showcasing African makers as a signature collection, and designed so individual sellers, small businesses, large businesses, brands and creators from anywhere can reach customers in Nigeria, across Africa and worldwide.
+NeedCentral is a modern marketplace / e-commerce **frontend** built with **Next.js (App Router), TypeScript, React and Tailwind CSS**. It is designed around a realistic customer shopping journey and marketplace experience: users can browse and discover a curated global catalogue (with a signature Nigerian / African-made collection), evaluate products through rich detail pages with reviews and Q&A, manage a fully client-side cart and coupon, and complete a simulated checkout with delivery or pickup options.
 
-> Part 4 of a frontend development roadmap. Deliberately **no database, no backend APIs, no auth and no real payments** — those belong to later projects.
+The storefront presents NeedCentral as a global marketplace born in Nigeria — starting with Nigerian sellers, prices and logistics, proudly showcasing African makers, and structured so individual sellers, small businesses, brands and creators can each have their own storefront.
 
-## Getting started
+## Project purpose
+
+This project demonstrates the ability to **design, build, structure, test and ship a production-quality frontend marketplace experience** — from information architecture and discovery, through a complete purchase flow, to retention features — entirely within a typed, component-based frontend stack, while keeping a clear separation between what is implemented today and what belongs to later infrastructure stages.
+
+## Technology stack
+
+Verified directly from the repository (`package.json`, source and config):
+
+- **Next.js** (16.3.2) — App Router, React Server Components by default, static-site / SSG generation
+- **React** (19.2.8)
+- **TypeScript** (5.x)
+- **Tailwind CSS** (v4) for styling
+- **lucide-react** for icons
+- **Client-side state + `localStorage`** for cart, coupon, wishlist, orders, reviews, Q&A, auth session, subject to component providers
+- **Git / GitHub** for version control and remote hosting
+- No deployment platform (e.g. Vercel) is configured or claimed in this repository
+
+## Completed features
+
+All features below are implemented and verified in the current repository:
+
+- **Marketplace / product discovery** — URL-driven search (debounced), category filter pills, a Nigerian / African-made collection filter, and sorting (price, rating, name) with shareable URLs such as `/products?category=fashion&sort=price-asc`
+- **Product catalogue** — `/products` with filtering, search, sorting and result counts
+- **Categories** — discovery page covering fifteen departments plus the African-made collection
+- **Product details** — `/products/[id]`, statically generated for every product, with rating summary, mock + user-submitted reviews, product Q&A, quantity selector, add-to-cart / buy-now, stock states, related products and recently-viewed rail
+- **Sellers and seller storefronts** — `/sellers` index and statically generated storefronts at `/sellers/[id]` with verified badges, location, aggregated ratings, store statistics and each store's full catalogue
+- **Cart** — add / remove items, quantity controls clamped to stock, subtotal / shipping / total in Naira (₦), free-delivery progress bar, persisted across sessions via `localStorage`
+- **Checkout** — simulated frontend-only order flow
+- **Coupons** — promo codes (e.g. WELCOME10, NAIJA15) applied/removed via Enter or button, one active coupon per order, minimum-spend logic
+- **Delivery options** — standard and express delivery with ETA and cross-border handling
+- **Pickup stations** — choose a pickup station instead of a shipping address; confirmation shows the chosen station
+- **Orders / order history** — confirmed orders persist to `localStorage` and appear at `/orders` with items, quantities, prices, totals, status and estimated delivery
+- **Wishlist** — save-for-later hearts on product cards and detail pages, dedicated `/wishlist` page, persisted via `localStorage`
+- **Recently viewed products** — a "recently viewed" rail on the home page, persisted client-side, with a clear-history control
+- **Sign-in / sign-up / account frontend experience** — simulated auth UI (no real backend), with an account gate for profile, orders, wishlist and sign-out
+- **Product Q&A** — ask and answer questions per product, persisted client-side
+- **Product reviews** — mock + user-submitted reviews with star ratings
+- **Review photo uploads** — attach photos to a review (client-side, size / count limits)
+- **Responsive / mobile experience** — layouts adapt down to mobile widths with a mobile navigation menu
+- **Accessibility improvements** — semantic HTML, labels / aria-labels, focus-visible outlines, `aria-live` quantity steppers, keyboard friendly controls
+- **Loading and empty states** — skeleton loading states and friendly empty/not-found results
+- **404 / not-found experience** — branded custom 404 page
+- **NeedCentral branding/favicon** — branded `app/icon.svg` favicon
+
+## Customer journey
+
+The fully supported flow is:
+
+**Browse / discover → Product → Cart → Checkout → Delivery or Pickup → Order confirmation → Orders**
+
+- Start on the home page (featured, trending, African-made) or use the catalogue / category / seller / search routes to discover products.
+- Open a product detail page to evaluate it via reviews, Q&A, star ratings, stock state and related products; save it for later with the wishlist, or rely on the recently-viewed rail to return to it.
+- Add items to the cart, adjust quantities, and apply a promo code in the cart.
+- At checkout choose **delivery** (standard / express) or a **pickup station**, review the totals with any discount, and place the (simulated) order.
+- See the order confirmation with its order number, then view the full history at `/orders`.
+
+## Marketplace experience
+
+NeedCentral models a multi-seller marketplace in the frontend:
+
+- Each **product** belongs to a **seller** (`lib/data.ts`), and a product detail page attributes it to that seller with a link to their storefront.
+- Each **seller** (`/sellers/[id]`) has a verified badge, location, aggregate product rating, review count, store statistics and its own full catalogue.
+- Sellers can be neighbourhood artisans and farms rooted in Nigeria and Ghana alongside studios and brands from around the world, represented through the Nigerian / African-made collection and cross-border delivery handling.
+- The idea is a credible "many sellers, one storefront" experience — with buy protection / returns messaging — rather than a single-brand demo page.
+
+## Architecture / current project boundary
+
+This Project 4 implementation is a **frontend marketplace application using simulated / client-side persistence** where applicable.
+
+Real production infrastructure is **intentionally deferred to later roadmap stages** and is **not implemented in this repository**:
+
+- PostgreSQL / Prisma
+- Server-side persistence (all user data currently lives in browser `localStorage`)
+- Production authentication (current sign-in/sign-up is a simulated frontend experience)
+- Backend / API
+- Payment gateway integration (checkout is a simulated demo flow, not a real payment)
+- Microservices
+
+Do not mistake the simulated flows above for real backend functionality.
+
+## Quality / engineering
+
+Verified quality work in this repository:
+
+- **TypeScript validation** — `npx tsc --noEmit` passes
+- **ESLint** — `npm run lint` passes
+- **Production builds** — `npm run build` succeeds
+- **Successful generation of all 71 pages** — confirmed by the current production build (71 static pages generated)
+- **Responsive behavior** — layouts adapt to mobile widths with a mobile menu
+- **Accessibility** — semantic HTML, labels / aria-labels, keyboard / focus behavior, `aria-live` steppers
+- **Loading / empty / error handling** — skeleton loading states, empty states, branded 404
+- **Checkout regression testing** — checkout, coupon, delivery and pickup flows verified end to end
+- **Removal of the nested coupon form React warning** — the `CouponPanel` previously rendered a `<form>` inside the checkout `<form>`; this was fixed and committed (`99d78d5 fix: remove nested coupon form in checkout`), and no nested-form or hydration warnings remain in the browser console
+
+Note: this project does not currently include an automated unit / integration / end-to-end test suite; verification was performed by type-check, lint, production build and manual/browser regression checks.
+
+## Running locally
+
+The following scripts are defined in `package.json` and can be run after installing dependencies:
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+npm run dev      # start the development server at http://localhost:3000
+npm run lint     # run ESLint
+npm run build    # create an optimized production build
 ```
 
-```bash
-npm run build    # production build
-npm run start    # serve the production build
-npm run lint     # eslint
-npx tsc --noEmit # type check
-```
+(`npm run start` is also available from `package.json` to serve the production build locally.)
 
-## Features
+## Project structure
 
-- **Home** — hero section, category grid, featured products, Nigerian/African-made collection, trending products, deal-of-the-week promo, newsletter CTA
-- **Products** — full catalogue with URL-driven search (debounced), category filter pills, a Nigerian / African Made collection filter and sorting (price, rating, name); shareable links like `/products?category=fashion&sort=price-asc` or `/products?collection=african-made`
-- **Product details** — dynamic route `/products/[id]`, statically generated for every product, with seller attribution linking to the seller's storefront, mock customer reviews, quantity selector, add-to-cart / buy-now, stock states and related products
-- **Sellers** — storefront discovery at `/sellers` and statically generated storefronts at `/sellers/[id]` with verified badges, locations, aggregated ratings and each store's full catalogue
-- **Categories** — discovery page covering fifteen departments plus the African Made collection
-- **Cart** — add/remove items, quantity controls clamped to stock, subtotal/shipping/total in Naira (₦), free-delivery progress bar, persistent across sessions via `localStorage`
-- **Wishlist** — save-for-later hearts on product cards and detail pages, dedicated `/wishlist` page, persisted via `localStorage` (`needcentral.wishlist.v1`)
-- **Checkout** — simulated frontend-only order flow with delivery options (standard, express, pickup station), Nigeria-default shipping form, order confirmation screen (clearly not a real payment)
-- **Order history** — confirmed orders persist to `localStorage` (`needcentral.orders.v1`) and appear at `/orders` with expandable details: items, quantities, prices, totals, status and estimated delivery
-- Responsive navigation with live cart badge, loading skeletons, custom 404, empty states, accessible controls
+- **`app/`** — Next.js App Router routes and pages (home, products, product detail, categories, sellers, seller storefront, cart, checkout, orders, wishlist, account, sign-in, sign-up, not-found) plus `layout.tsx`, `globals.css` and the branded `icon.svg` favicon
+- **`components/`** — reusable UI in feature folders (`home`, `products`, `cart`, `coupons`, `orders`, `wishlist`, `sellers`, `auth`, `layout`) including providers for cart, coupon, orders, wishlist, recently-viewed and auth
+- **`lib/`** — data (`data.ts`), utilities (`utils.ts`), shared UI helpers (`ui.ts`) and category icons
+- **`types/`** — shared TypeScript types (Product, Category, Seller, Review, CartItem, Cart, Order, Address, DeliveryOption, and more)
+- **`public/`** — static / image assets served by the app
 
-## Routes
+## Project status
 
-| Route | Description |
-| --- | --- |
-| `/` | Home |
-| `/products` | Catalogue (`?q=`, `?category=`, `?collection=`, `?sort=` query params) |
-| `/products/[id]` | Product detail (statically generated) |
-| `/sellers` | Seller discovery |
-| `/sellers/[id]` | Seller storefront (statically generated) |
-| `/categories` | Category discovery |
-| `/cart` | Shopping cart |
-| `/checkout` | Simulated checkout |
-| `/orders` | Order history (localStorage) |
+**NeedCentral Project 4 — COMPLETE.**
 
-## Architecture notes
+This project is complete within its agreed scope: a Next.js + TypeScript frontend marketplace experience with a fully working simulated shopping journey. All application functionality is implemented and verified; the repository is clean and `main` is synchronized with `origin/main`.
 
-- **App Router** with server components by default; client components only where interactivity is required (header, toolbar, cart/checkout, purchase panels)
-- **Cart state** lives in a small `useSyncExternalStore`-backed store persisted to `localStorage` (`needcentral.cart.v1`), exposed through React context
-- **Types** for Product, Category, Seller, Review, CartItem, Cart, Order, OrderItem, Address, DeliveryOption, ProductFilter, SortOption and more live in `types/index.ts`; money is stored in minor units (kobo) so a multi-currency layer can be introduced later; mock data in `lib/data.ts` is structured so PostgreSQL/Prisma can replace it later
-- **Images** are locally generated branded SVGs (`scripts/generate-images.mjs` + `lucide-static`) served through `next/image`
+## Roadmap position
 
-## Tech stack
+NeedCentral sits at the transition from pure frontend work into full-stack territory. Verified technology progression across the related projects:
 
-Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · lucide-react
+- **Project 1** — HTML, CSS, JavaScript
+- **Project 2** — React, Tailwind CSS, Framer Motion
+- **Project 3** — Next.js + TypeScript / full frontend application stage
+- **Project 4 (this project)** — NeedCentral: a Next.js + TypeScript frontend marketplace
+
+Later stages (not implemented here) would add:
+
+- PostgreSQL
+- Authentication
+- Backend / API
+- Microservices
+- Mobile / desktop technologies
+
+## Future / later stages
+
+Stuff clearly distinguished from the current implementation — none of the following exist in this repository today and they are listed only as future direction:
+
+- A real database (PostgreSQL / Prisma) and server-side persistence
+- Production authentication and identity
+- A backend / REST API
+- Payment gateway integration (a real, charged checkout)
+- Real, enforced buyer protection, returns and shipping logistics
+- Seller self-service sign-up and listing management
+- Automated end-to-end test coverage
+- Deployment configuration (e.g. Vercel)
+
+These are future infra/scope items, not commitments bundled into Project 4.
+
+## Design / product philosophy
+
+The goal of this project is a **credible marketplace experience** rather than a simple demo page:
+
+- **Clear discovery** — URL-driven search, category and collection browsing, and seller-driven navigation
+- **Trustworthy product evaluation** — ratings, reviews with photos, Q&A, stock states and transparent seller context
+- **Transparent checkout** — a clear, simulated flow with visible totals, discounts and delivery / pickup choices
+- **Seller context** — every product is tied to a real-looking seller and storefront
+- **Customer retention features** — wishlist, recently-viewed, order history and an account experience
+- **Responsive and accessible experience** — mobile-first layouts, semantic HTML, keyboard and screen-reader friendly controls
+
+NeedCentral is presented as a credible marketplace **frontend**; it is not a real, operating commercial marketplace (there are no real payments, orders or accounts).
