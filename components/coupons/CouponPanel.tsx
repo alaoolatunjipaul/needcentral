@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, type KeyboardEvent } from "react";
 import { BadgeCheck, Tag, X } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
 import { useCoupons } from "@/components/coupons/CouponProvider";
@@ -43,8 +43,7 @@ export function CouponPanel({ className }: CouponPanelProps) {
       ? coupon.minSubtotalCents - subtotalCents
       : 0;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleApply() {
     const normalized = code.trim().toUpperCase();
     if (!normalized) {
       setMessage({ tone: "error", text: "Enter a promo code to apply." });
@@ -73,6 +72,13 @@ export function CouponPanel({ className }: CouponPanelProps) {
     });
   }
 
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleApply();
+    }
+  }
+
   function handleRemove() {
     const removedCode = coupon?.code;
     removeCoupon();
@@ -88,7 +94,7 @@ export function CouponPanel({ className }: CouponPanelProps) {
   return (
     <div className={cn("rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-200", className)}>
       {coupon === null ? (
-        <form onSubmit={handleSubmit} noValidate>
+        <div>
           <label
             htmlFor={inputId}
             className="block text-xs font-semibold uppercase tracking-wide text-zinc-500"
@@ -102,6 +108,7 @@ export function CouponPanel({ className }: CouponPanelProps) {
               type="text"
               value={code}
               onChange={(event) => setCode(event.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="e.g. WELCOME10"
               autoComplete="off"
               aria-invalid={message?.tone === "error" || undefined}
@@ -109,7 +116,8 @@ export function CouponPanel({ className }: CouponPanelProps) {
               className="w-full min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm uppercase text-zinc-900 placeholder:normal-case placeholder:text-zinc-400 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
             />
             <button
-              type="submit"
+              type="button"
+              onClick={handleApply}
               className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 active:scale-[0.98]"
             >
               Apply
@@ -132,7 +140,7 @@ export function CouponPanel({ className }: CouponPanelProps) {
           <p className="mt-2 text-[11px] leading-4 text-zinc-400">
             Demo codes: WELCOME10 · NAIJA15 (simulated — nothing is charged)
           </p>
-        </form>
+        </div>
       ) : (
         <div>
           <div className="flex items-start justify-between gap-3">
