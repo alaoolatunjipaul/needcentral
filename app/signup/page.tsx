@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { UserPlus, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { signUpAction } from "@/app/auth/actions";
 import { btnPrimary, containerClass, inputBase } from "@/lib/ui";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const [isPending, startTransition] = useTransition();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,12 +32,15 @@ export default function SignUpPage() {
       return;
     }
 
-    const result = signUp(name, email, password);
-    if (result) {
-      setError(result);
-      return;
-    }
-    router.push("/account");
+    startTransition(async () => {
+      const result = await signUpAction(name, email, password);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push("/account");
+      router.refresh();
+    });
   }
 
   if (isAuthenticated) {
@@ -214,8 +219,8 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            <button type="submit" className={btnPrimary}>
-              Create account
+            <button type="submit" disabled={isPending} className={btnPrimary}>
+              {isPending ? "Creating account…" : "Create account"}
             </button>
           </form>
 

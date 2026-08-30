@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import { LogIn, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { signInAction } from "@/app/auth/actions";
 import { btnPrimary, containerClass, inputBase } from "@/lib/ui";
 
 export default function SignInPage() {
   const router = useRouter();
-  const { signIn, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,12 +20,15 @@ export default function SignInPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    const result = signIn(email, password);
-    if (result) {
-      setError(result);
-      return;
-    }
-    router.push("/account");
+    startTransition(async () => {
+      const result = await signInAction(email, password);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.push("/account");
+      router.refresh();
+    });
   }
 
   if (isAuthenticated) {
@@ -152,8 +157,8 @@ export default function SignInPage() {
               </div>
             </div>
 
-            <button type="submit" className={btnPrimary}>
-              Sign in
+            <button type="submit" disabled={isPending} className={btnPrimary}>
+              {isPending ? "Signing in…" : "Sign in"}
             </button>
           </form>
 

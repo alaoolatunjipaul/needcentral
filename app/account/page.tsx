@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import {
   ArrowRight,
   ClipboardList,
@@ -13,6 +14,7 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { signOutAction } from "@/app/auth/actions";
 import { useCart } from "@/components/cart/CartProvider";
 import { useOrders } from "@/components/orders/OrdersProvider";
 import { useWishlist } from "@/components/wishlist/WishlistProvider";
@@ -20,14 +22,19 @@ import { btnPrimary, btnSecondary, containerClass } from "@/lib/ui";
 
 export default function AccountPage() {
   const router = useRouter();
+  const [isSigningOut, startTransition] = useTransition();
   const { customer, isAuthenticated, signOut } = useAuth();
   const { itemCount } = useCart();
   const { count: savedCount } = useWishlist();
   const { orders } = useOrders();
 
   function handleSignOut() {
-    signOut();
-    router.push("/");
+    startTransition(async () => {
+      await signOutAction();
+      signOut();
+      router.push("/");
+      router.refresh();
+    });
   }
 
   if (!isAuthenticated || !customer) {
@@ -108,10 +115,11 @@ export default function AccountPage() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
+              disabled={isSigningOut}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 disabled:opacity-50"
             >
               <LogOut aria-hidden="true" className="size-4" />
-              Sign out
+              {isSigningOut ? "Signing out…" : "Sign out"}
             </button>
           </div>
         </section>
