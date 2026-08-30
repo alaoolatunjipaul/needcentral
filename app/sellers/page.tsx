@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Store } from "lucide-react";
 import { SellerCard } from "@/components/sellers/SellerCard";
-import { getSellerSummaries } from "@/lib/data";
+import { getSellerSummaries } from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
     "Meet the people, studios and businesses behind NeedCentral — artisans and farms from Nigeria and Ghana alongside brands and studios from around the world.",
 };
 
-export default function SellersPage() {
-  const summaries = getSellerSummaries();
+export default async function SellersPage() {
+  const summaries = await getSellerSummaries();
 
   return (
     <div className={containerClass}>

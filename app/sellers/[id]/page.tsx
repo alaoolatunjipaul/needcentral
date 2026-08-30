@@ -12,15 +12,16 @@ import {
   Truck,
 } from "lucide-react";
 import { ProductGrid } from "@/components/products/ProductCard";
-import { getSellerById, getSellerProducts, getSellerSummaries } from "@/lib/data";
+import { getSellerById, getSellerProducts, getSellerSummaries } from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
 
 interface SellerPageProps {
   params: Promise<{ id: string }>;
 }
 
-export function generateStaticParams(): Array<{ id: string }> {
-  return getSellerSummaries().map((summary) => ({ id: summary.seller.id }));
+export async function generateStaticParams(): Promise<Array<{ id: string }>> {
+  const summaries = await getSellerSummaries();
+  return summaries.map((summary) => ({ id: summary.seller.id }));
 }
 
 /**
@@ -33,7 +34,7 @@ export async function generateMetadata({
   params,
 }: SellerPageProps): Promise<Metadata> {
   const { id } = await params;
-  const seller = getSellerById(id);
+  const seller = await getSellerById(id);
   if (!seller) {
     return { title: "Seller not found" };
   }
@@ -49,10 +50,10 @@ export async function generateMetadata({
 
 export default async function SellerStorefrontPage({ params }: SellerPageProps) {
   const { id } = await params;
-  const seller = getSellerById(id);
+  const seller = await getSellerById(id);
   if (!seller) notFound();
 
-  const products = getSellerProducts(seller.id);
+  const products = await getSellerProducts(seller.id);
   const reviewCount = products.reduce((sum, product) => sum + product.reviewCount, 0);
   const avgRating = products.length
     ? products.reduce((sum, product) => sum + product.rating, 0) / products.length

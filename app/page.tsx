@@ -11,14 +11,17 @@ import {
   getAfricanMadeProducts,
   getFeaturedProducts,
   getTrendingProducts,
-} from "@/lib/data";
+} from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
 
-export default function HomePage() {
-  const featuredProducts = getFeaturedProducts(8);
-  const trendingProducts = getTrendingProducts(8);
-  const africanMade = getAfricanMadeProducts();
-  const africanMadeCount = countAfricanMadeProducts();
+export default async function HomePage() {
+  const [featuredProducts, trendingProducts, africanMade, africanMadeCount] =
+    await Promise.all([
+      getFeaturedProducts(8),
+      getTrendingProducts(8),
+      getAfricanMadeProducts(),
+      countAfricanMadeProducts(),
+    ]);
 
   return (
     <div className="flex flex-col gap-16 pb-20 sm:gap-20 lg:gap-24">

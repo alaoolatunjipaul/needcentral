@@ -21,16 +21,15 @@ import { ProductReviews } from "@/components/products/ProductReviews";
 import { RatingStars } from "@/components/products/RatingStars";
 import { RecentlyViewedRail } from "@/components/products/RecentlyViewedRail";
 import { RecordProductView } from "@/components/products/RecordProductView";
+import { getQandAForProduct, getReviewsForProduct } from "@/lib/data";
 import {
-  categories,
+  getAllCategories,
   getAllProducts,
   getProductById,
-  getQandAForProduct,
   getRelatedProducts,
-  getReviewsForProduct,
   getSellerById,
   getSellerSummary,
-} from "@/lib/data";
+} from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
 import {
   discountPercent,
@@ -41,8 +40,9 @@ interface ProductPageProps {
   params: Promise<{ id: string }>;
 }
 
-export function generateStaticParams(): Array<{ id: string }> {
-  return getAllProducts().map((product) => ({ id: product.id }));
+export async function generateStaticParams(): Promise<Array<{ id: string }>> {
+  const products = await getAllProducts();
+  return products.map((product) => ({ id: product.id }));
 }
 
 /**
@@ -55,7 +55,7 @@ export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { id } = await params;
-  const product = getProductById(id);
+  const product = await getProductById(id);
   if (!product) {
     return { title: "Product not found" };
   }
@@ -72,16 +72,17 @@ export async function generateMetadata({
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { id } = await params;
-  const product = getProductById(id);
+  const product = await getProductById(id);
   if (!product) notFound();
 
-  const relatedProducts = getRelatedProducts(product);
+  const categories = await getAllCategories();
   const categoryName =
     categories.find((category) => category.id === product.category)?.name ??
     product.category;
+  const relatedProducts = await getRelatedProducts(product);
   const discount = discountPercent(product.priceCents, product.compareAtPriceCents);
-  const seller = product.sellerId ? getSellerById(product.sellerId) : undefined;
-  const sellerSummary = seller ? getSellerSummary(seller.id) : undefined;
+  const seller = product.sellerId ? await getSellerById(product.sellerId) : undefined;
+  const sellerSummary = seller ? await getSellerSummary(seller.id) : undefined;
   const reviews = getReviewsForProduct(product.id);
   const questions = getQandAForProduct(product.id);
 

@@ -1,0 +1,71 @@
+// NeedCentral — Prisma schema (Project 5)
+//
+// Scope (Project 5): the core storefront catalogue is moved into PostgreSQL:
+// Category, Seller and Product. Higher-fidelity/volume entities that are
+// currently client-side (reviews, Q&A, wishlist, orders, coupons, delivery /
+// pickup config) intentionally stay out of this schema for now and are added
+// in later projects. Money is stored in minor currency units ("cents" / kobo)
+// to match the existing TypeScript types (see types/index.ts).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Category {
+  id       String    @id
+  name     String
+  tagline  String
+  products Product[]
+
+  @@map("categories")
+}
+
+model Seller {
+  id          String    @id
+  name        String
+  location    String
+  description String
+  joinedYear  Int
+  products    Product[]
+
+  @@map("sellers")
+}
+
+model Product {
+  id                  String   @id
+  name                String
+  categoryId          String
+  sellerId            String?
+  priceCents          Int
+  compareAtPriceCents Int?
+  image               String
+  description         String
+  rating              Float
+  reviewCount         Int
+  stock               Int
+  featured            Boolean  @default(false)
+
+  // Origin (nullable) normalised from the flat `origin` object into scalars.
+  originCountry     String?
+  originCountryCode String?
+  madeInAfrica      Boolean?
+
+  // Optional per-star review counts, rendered only when present.
+  ratingDistribution Json?
+
+  category Category @relation(fields: [categoryId], references: [id])
+  seller   Seller?  @relation(fields: [sellerId], references: [id])
+
+  // Storefront query patterns (filterAndSortProducts equivalents).
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([featured])
+  @@index([categoryId, priceCents])
+
+  @@map("products")
+}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import { categoryGradients, categoryIcons } from "@/lib/category-icons";
-import { categories, getCategoryCounts } from "@/lib/data";
+import { getAllCategories, getCategoryCounts } from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
 
 export const metadata: Metadata = {
@@ -11,8 +11,11 @@ export const metadata: Metadata = {
     "Explore every NeedCentral department — electronics, phones & accessories, computers, fashion, beauty, food & groceries, home, wellness and more. Plus the Nigerian / African Made collection.",
 };
 
-export default function CategoriesPage() {
-  const counts = getCategoryCounts();
+export default async function CategoriesPage() {
+  const [categories, counts] = await Promise.all([
+    getAllCategories(),
+    getCategoryCounts(),
+  ]);
 
   return (
     <div className={containerClass}>

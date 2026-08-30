@@ -2,12 +2,9 @@ import type { Metadata } from "next";
 import { ProductGrid } from "@/components/products/ProductCard";
 import { ProductToolbar } from "@/components/products/ProductToolbar";
 import { RecentlyViewedRail } from "@/components/products/RecentlyViewedRail";
-import { categories, filterAndSortProducts, getCategoryCounts, parseProductQuery } from "@/lib/data";
+import { parseProductQuery } from "@/lib/data";
+import { filterAndSortProducts, getAllCategories, getCategoryCounts } from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
-
-const categoryNames = Object.fromEntries(
-  categories.map((category) => [category.id, category.name])
-);
 
 export const metadata: Metadata = {
   title: "Shop all products",
@@ -22,8 +19,12 @@ interface ProductsPageProps {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const resolvedParams = await searchParams;
   const query = parseProductQuery(resolvedParams);
-  const { items, total } = filterAndSortProducts(query);
-  const counts = getCategoryCounts();
+  const categories = await getAllCategories();
+  const categoryNames = Object.fromEntries(
+    categories.map((category) => [category.id, category.name])
+  );
+  const { items, total } = await filterAndSortProducts(query);
+  const counts = await getCategoryCounts();
 
   return (
     <div className={containerClass}>
