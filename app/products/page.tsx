@@ -12,6 +12,8 @@ export const metadata: Metadata = {
     "Browse the full NeedCentral catalogue — electronics, phones, computers, fashion, beauty, groceries, home and more. Filter by category, explore African-made goods, sort by price and find what you need.",
 };
 
+export const instant = false;
+
 interface ProductsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }

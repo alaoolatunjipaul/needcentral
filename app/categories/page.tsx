@@ -11,6 +11,8 @@ export const metadata: Metadata = {
     "Explore every NeedCentral department — electronics, phones & accessories, computers, fashion, beauty, food & groceries, home, wellness and more. Plus the Nigerian / African Made collection.",
 };
 
+export const instant = false;
+
 export default async function CategoriesPage() {
   const [categories, counts] = await Promise.all([
     getAllCategories(),

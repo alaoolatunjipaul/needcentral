@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { CouponProvider } from "@/components/coupons/CouponProvider";
 import { OrdersProvider } from "@/components/orders/OrdersProvider";
 import { RecentlyViewedProvider } from "@/components/products/RecentlyViewedProvider";
 import { WishlistProvider } from "@/components/wishlist/WishlistProvider";
 import { AuthProvider } from "@/components/auth/AuthProvider";
-import { Header } from "@/components/layout/Header";
+import { SessionHeader } from "@/components/layout/SessionHeader";
 import { Footer } from "@/components/layout/Footer";
 import "./globals.css";
 
@@ -62,7 +62,28 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <OrdersProvider>
                 <CouponProvider>
                   <RecentlyViewedProvider>
-                    <Header />
+                    <Suspense
+                      fallback={
+                        <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur">
+                          <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+                            <span className="flex shrink-0 items-center gap-2">
+                              <span
+                                aria-hidden="true"
+                                className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-violet-500 text-lg font-extrabold text-white"
+                              >
+                                N
+                              </span>
+                              <span className="text-lg font-bold tracking-tight">
+                                NeedCentral
+                              </span>
+                            </span>
+                            <div className="ml-auto h-9 w-44 animate-pulse rounded-full bg-zinc-100" />
+                          </div>
+                        </header>
+                      }
+                    >
+                      <SessionHeader />
+                    </Suspense>
                     <main className="flex-1">{children}</main>
                     <Footer />
                   </RecentlyViewedProvider>

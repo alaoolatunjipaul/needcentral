@@ -14,6 +14,8 @@ import {
 } from "@/lib/queries";
 import { containerClass } from "@/lib/ui";
 
+export const instant = false;
+
 export default async function HomePage() {
   const [featuredProducts, trendingProducts, africanMade, africanMadeCount] =
     await Promise.all([

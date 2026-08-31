@@ -45,11 +45,7 @@ export async function generateStaticParams(): Promise<Array<{ id: string }>> {
   return products.map((product) => ({ id: product.id }));
 }
 
-/**
- * Every product id is prerendered at build time, so any other id is truly
- * not found — served as a real HTTP 404 instead of a streamed fallback.
- */
-export const dynamicParams = false;
+export const instant = false;
 
 export async function generateMetadata({
   params,

@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     "Meet the people, studios and businesses behind NeedCentral — artisans and farms from Nigeria and Ghana alongside brands and studios from around the world.",
 };
 
+export const instant = false;
+
 export default async function SellersPage() {
   const summaries = await getSellerSummaries();
 

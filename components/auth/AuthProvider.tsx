@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { signOutAction } from "@/app/auth/actions";
 import type { Customer } from "@/types";
 
 const CUSTOMERS_KEY = "needcentral.customers.v1";
@@ -55,12 +56,26 @@ function parseStoredSession(raw: string | null): string | null {
   }
 }
 
+/** Plain, serializable session user passed from the server to the client UI. */
+export interface AuthSession {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+/** Passwordless customer profile surfaced to the UI. */
+export interface AuthCustomer {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface AuthContextValue {
-  customer: Customer | null;
+  customer: AuthCustomer | null;
   isAuthenticated: boolean;
   signIn: (email: string, password: string) => string | null;
   signUp: (name: string, email: string, password: string) => string | null;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 interface AuthStore {
@@ -168,17 +183,41 @@ function createAuthStore(): AuthStore {
 
 const authStore = createAuthStore();
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  session = null,
+}: {
+  children: ReactNode;
+  session?: AuthSession | null;
+}) {
   const { customers, sessionId } = useSyncExternalStore(
     authStore.subscribe,
     authStore.getSnapshot,
     authStore.getServerSnapshot
   );
 
-  const customer = useMemo(
+  const demoCustomer = useMemo(
     () => (sessionId ? customers.find((c) => c.id === sessionId) ?? null : null),
     [customers, sessionId]
   );
+
+  const customer = useMemo<AuthCustomer | null>(() => {
+    if (session) {
+      return {
+        id: session.id,
+        name: session.name || session.email,
+        email: session.email,
+      };
+    }
+    if (demoCustomer) {
+      return {
+        id: demoCustomer.id,
+        name: demoCustomer.name,
+        email: demoCustomer.email,
+      };
+    }
+    return null;
+  }, [session, demoCustomer]);
 
   const signIn = useCallback(
     (email: string, password: string): string | null => {
@@ -212,7 +251,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [customers]
   );
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    try {
+      await signOutAction();
+    } catch {
+      // Best effort: the server session may already be invalidated.
+    }
     authStore.updateSession(null);
   }, []);
 
