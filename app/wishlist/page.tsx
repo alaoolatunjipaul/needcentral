@@ -2,14 +2,51 @@
 
 import Link from "next/link";
 import { ArrowRight, Heart, ShoppingBag } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ProductGrid } from "@/components/products/ProductCard";
 import { useWishlist } from "@/components/wishlist/WishlistProvider";
 import { getProductById } from "@/lib/data";
 import { btnPrimary, containerClass } from "@/lib/ui";
 
 export default function WishlistPage() {
+  const { isAuthenticated } = useAuth();
   const { items, count, clearWishlist } = useWishlist();
   const isEmpty = count === 0;
+
+  if (!isAuthenticated) {
+    return (
+      <div className={containerClass}>
+        <div className="mx-auto max-w-md py-16 sm:py-24">
+          <div className="flex flex-col items-center rounded-3xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center">
+            <span
+              aria-hidden="true"
+              className="grid size-16 place-items-center rounded-full bg-zinc-100 text-zinc-400"
+            >
+              <Heart className="size-8" />
+            </span>
+            <h1 className="mt-5 text-xl font-bold text-zinc-900">
+              Sign in to view your saved items
+            </h1>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">
+              Keep an eye on anything that catches your eye — your list is
+              stored on this device once you&apos;re signed in.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link href="/signin" className={btnPrimary}>
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98]"
+              >
+                Create account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const savedProducts = items.flatMap((item) => {
     const product = getProductById(item.productId);

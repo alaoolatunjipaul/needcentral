@@ -11,6 +11,7 @@ import {
   PackageCheck,
   Truck,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useOrders } from "@/components/orders/OrdersProvider";
 import { getDeliveryOptionById } from "@/lib/data";
 import { btnPrimary, containerClass } from "@/lib/ui";
@@ -242,6 +243,42 @@ function OrderCard({ order }: { order: Order }) {
 
 export default function OrdersPage() {
   const { orders, count } = useOrders();
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <div className={containerClass}>
+        <div className="mx-auto max-w-md py-16 sm:py-24">
+          <div className="flex flex-col items-center rounded-3xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center">
+            <span
+              aria-hidden="true"
+              className="grid size-16 place-items-center rounded-full bg-zinc-100 text-zinc-400"
+            >
+              <ClipboardList className="size-8" />
+            </span>
+            <h1 className="mt-5 text-xl font-bold text-zinc-900">
+              Sign in to view your orders
+            </h1>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-500">
+              Track the status, delivery estimate and details of every order —
+              all stored on this device once you&apos;re signed in.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link href="/signin" className={btnPrimary}>
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98]"
+              >
+                Create account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (count === 0) {
     return (
