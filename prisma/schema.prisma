@@ -1,14 +1,16 @@
-// NeedCentral — Prisma schema (Project 5, extended for Project 6 auth)
+// NeedCentral — Prisma schema (Projects 5–7)
 //
 // Project 5 scope: the core storefront catalogue is moved into PostgreSQL:
 // Category, Seller and Product. Money is stored in minor currency units
 // ("cents" / kobo) to match the existing TypeScript types (see types/index.ts).
 //
 // Project 6 scope: adds the authentication persistence foundation — User,
-// Account and Session — while leaving the higher-fidelity/volume entities
-// (reviews, Q&A, wishlist, orders, coupons, delivery / pickup config)
-// intentionally client-side for now. The auth models follow the standard
-// Auth.js-compatible shape and are wired to no UI / framework yet.
+// Account and Session (server-side session cookie in lib/auth-service.ts).
+//
+// Project 7 scope: order history moves out of per-device localStorage into
+// PostgreSQL — Order + OrderItem are persisted scoped to the signed-in user.
+// The remaining high-fidelity / volume entities (reviews, Q&A, wishlist,
+// coupons, delivery / pickup config) stay intentionally client-side for now.
 
 generator client {
   provider = "prisma-client"
@@ -92,6 +94,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  orders        Order[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -129,4 +132,56 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+// Order history (Project 7)
+//
+// Server-side persistence for the checkout's Order / OrderItem shapes (see
+// types/index.ts). Orders are scoped to the signed-in user (userId → users,
+// ON DELETE CASCADE). Freestanding objects (pickupStation, shippingAddress)
+// and optional coupon metadata are stored as JSON / nullable columns. Money is
+// stored in minor currency units ("cents" / kobo), matching the TS types.
+
+model Order {
+  id                  String     @id
+  userId              String
+  email               String
+  items               OrderItem[]
+  subtotalCents       Int
+  shippingCents       Int
+  totalCents          Int
+  status              String
+  deliveryOptionId    String
+  crossBorder         Boolean    @default(false)
+  pickupStation       Json?
+  shippingAddress     Json?
+  placedAtISO         DateTime
+  estimatedDeliveryISO DateTime
+  couponCode          String?
+  couponDescription   String?
+  discountCents       Int?
+  createdAt           DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Per-user order listing (newest first) is the hot read path.
+  @@index([userId, placedAtISO])
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  productId  String
+  name       String
+  image      String
+  priceCents Int
+  quantity   Int
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
 }

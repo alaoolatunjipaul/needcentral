@@ -40,6 +40,7 @@ import type {
   OrderItem,
   PickupStation,
 } from "@/types";
+import { placeOrder } from "./actions";
 
 const COUNTRIES = [
   "Nigeria",
@@ -157,6 +158,7 @@ export default function CheckoutPage() {
     };
 
     addOrder(order);
+    void placeOrder(order);
     setPlacedOrder(order);
     clearCart();
     window.scrollTo({ top: 0 });
