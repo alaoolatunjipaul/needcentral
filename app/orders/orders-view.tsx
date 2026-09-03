@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   ArrowRight,
+  CheckCircle2,
   ChevronDown,
   ClipboardList,
   MapPin,
   PackageCheck,
   Truck,
+  XCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useOrders } from "@/components/orders/OrdersProvider";
@@ -17,6 +19,7 @@ import { getDeliveryOptionById } from "@/lib/data";
 import { btnPrimary, containerClass } from "@/lib/ui";
 import { cn, formatPrice, MARKET_CONFIG } from "@/lib/utils";
 import type { Order } from "@/types";
+import type { PaymentBannerResult } from "./page";
 
 const STATUS_LABELS: Record<Order["status"], string> = {
   pending: "Pending",
@@ -241,7 +244,74 @@ function OrderCard({ order }: { order: Order }) {
   );
 }
 
-export function OrdersView({ dbOrders }: { dbOrders: Order[] | null }) {
+function PaymentBanner({
+  paymentResult,
+}: {
+  paymentResult: NonNullable<PaymentBannerResult>;
+}) {
+  const messages: Record<
+    NonNullable<PaymentBannerResult>["kind"],
+    { title: string; body: string; ok: boolean }
+  > = {
+    confirmed: {
+      ok: true,
+      title: "Payment received",
+      body: `Order ${paymentResult.reference} is confirmed. Thanks for shopping with NeedCentral!`,
+    },
+    already_paid: {
+      ok: true,
+      title: "Already confirmed",
+      body: `Payment for order ${paymentResult.reference} was already verified.`,
+    },
+    failed: {
+      ok: false,
+      title: "Payment not completed",
+      body: `We couldn't confirm the payment for order ${paymentResult.reference}. Please try again.`,
+    },
+    amount_mismatch: {
+      ok: false,
+      title: "Payment could not be confirmed",
+      body: `The payment amount for order ${paymentResult.reference} didn't match your order, so it wasn't confirmed. Contact support if you were charged.`,
+    },
+    abandoned: {
+      ok: false,
+      title: "Payment not verified",
+      body: `We couldn't verify the payment for order ${paymentResult.reference}. It remains pending.`,
+    },
+    unknown: {
+      ok: false,
+      title: "Payment not verified",
+      body: "We couldn't verify that payment for this account.",
+    },
+  };
+  const meta = messages[paymentResult.kind];
+  const Icon = meta.ok ? CheckCircle2 : XCircle;
+  return (
+    <div
+      role="status"
+      className={cn(
+        "mb-8 flex items-start gap-3 rounded-2xl px-4 py-3.5 ring-1",
+        meta.ok
+          ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+          : "bg-rose-50 text-rose-800 ring-rose-200"
+      )}
+    >
+      <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+      <div>
+        <p className="text-sm font-bold">{meta.title}</p>
+        <p className="mt-0.5 text-sm leading-5 opacity-90">{meta.body}</p>
+      </div>
+    </div>
+  );
+}
+
+export function OrdersView({
+  dbOrders,
+  paymentResult,
+}: {
+  dbOrders: Order[] | null;
+  paymentResult?: PaymentBannerResult | null;
+}) {
   const { orders: localOrders } = useOrders();
   const { isAuthenticated } = useAuth();
 
@@ -294,6 +364,7 @@ export function OrdersView({ dbOrders }: { dbOrders: Order[] | null }) {
             Your orders
           </h1>
         </header>
+        {paymentResult && <PaymentBanner paymentResult={paymentResult} />}
         <div className="mb-16 flex flex-col items-center rounded-3xl border border-dashed border-zinc-300 bg-white px-6 py-20 text-center">
           <span className="grid size-16 place-items-center rounded-full bg-brand-50 text-brand-400">
             <ClipboardList aria-hidden="true" className="size-8" />
@@ -326,6 +397,8 @@ export function OrdersView({ dbOrders }: { dbOrders: Order[] | null }) {
           {isPersisted ? "stored on your account." : "stored on this device."}
         </p>
       </header>
+
+      {paymentResult && <PaymentBanner paymentResult={paymentResult} />}
 
       <ul className="space-y-5 pb-16">
         {orders.map((order) => (

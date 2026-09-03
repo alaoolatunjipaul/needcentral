@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import {
   ArrowRight,
-  CheckCircle2,
   CreditCard,
   Globe,
   Lock,
@@ -17,13 +16,12 @@ import {
 import { useCart } from "@/components/cart/CartProvider";
 import { CouponPanel } from "@/components/coupons/CouponPanel";
 import { useCoupons } from "@/components/coupons/CouponProvider";
-import { useOrders } from "@/components/orders/OrdersProvider";
 import {
   getDeliveryOptionById,
   getDeliveryOptions,
   getPickupStations,
 } from "@/lib/data";
-import { btnPrimary, btnSecondary, containerClass, inputBase } from "@/lib/ui";
+import { btnPrimary, containerClass, inputBase } from "@/lib/ui";
 import {
   computeCartTotals,
   couponDiscountCents,
@@ -36,11 +34,9 @@ import {
 import type {
   Address,
   DeliveryOptionId,
-  Order,
-  OrderItem,
   PickupStation,
 } from "@/types";
-import { placeOrder } from "./actions";
+import { startCheckoutPayment } from "./actions";
 
 const COUNTRIES = [
   "Nigeria",
@@ -58,16 +54,11 @@ const COUNTRIES = [
   "Canada",
 ] as const;
 
-function generateOrderId(): string {
-  const random = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `NC-${Date.now().toString(36).toUpperCase()}-${random}`;
-}
-
 export default function CheckoutPage() {
   const { items, clearCart } = useCart();
-  const { addOrder } = useOrders();
   const { coupon } = useCoupons();
-  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [deliveryId, setDeliveryId] = useState<DeliveryOptionId>("standard");
   const [country, setCountry] = useState<string>(MARKET_CONFIG.country);
   const [pickupStationId, setPickupStationId] = useState<string>(
@@ -96,7 +87,7 @@ export default function CheckoutPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (items.length === 0 || !selectedDelivery) return;
+    if (items.length === 0 || !selectedDelivery || submitting) return;
     const data = new FormData(event.currentTarget);
 
     const isPickupOrder =
@@ -112,181 +103,31 @@ export default function CheckoutPage() {
           country: String(data.get("country") ?? MARKET_CONFIG.country),
         };
 
-    const orderItems: OrderItem[] = items.map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      image: item.image,
-      priceCents: item.priceCents,
-      quantity: item.quantity,
-    }));
+    setErrorMsg(null);
+    setSubmitting(true);
 
-    const placedAtISO = new Date().toISOString();
-    const etaMax =
-      crossBorder && selectedDelivery.crossBorderEtaMaxDays !== undefined
-        ? selectedDelivery.crossBorderEtaMaxDays
-        : isPickupOrder
-          ? selectedPickupStation.etaDays
-          : selectedDelivery.etaMaxDays;
-    const estimatedDeliveryISO = new Date(
-      new Date(placedAtISO).getTime() +
-        etaMax * 24 * 60 * 60 * 1000
-    ).toISOString();
-
-    const order: Order = {
-      id: generateOrderId(),
+    // The server recomputes the authoritative total and returns a Paystack
+    // authorization URL. On success we clear the cart and redirect the customer
+    // to Paystack; the order stays "pending" until server-side verification.
+    void startCheckoutPayment({
       email: String(data.get("email") ?? ""),
-      items: orderItems,
-      subtotalCents: totals.subtotalCents,
-      shippingCents: totals.shippingCents,
-      totalCents: finalTotalCents,
-      status: "confirmed",
+      items: items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })),
       deliveryOptionId: selectedDelivery.id,
-      crossBorder,
-      ...(isPickupOrder && selectedPickupStation
-        ? { pickupStation: selectedPickupStation }
-        : {}),
-      shippingAddress,
-      placedAtISO,
-      estimatedDeliveryISO,
-      ...(coupon !== null && discountCents > 0
-        ? {
-            couponCode: coupon.code,
-            couponDescription: coupon.description,
-            discountCents,
-          }
-        : {}),
-    };
-
-    addOrder(order);
-    void placeOrder(order);
-    setPlacedOrder(order);
-    clearCart();
-    window.scrollTo({ top: 0 });
-  }
-
-  if (placedOrder) {
-    const delivery = getDeliveryOptionById(placedOrder.deliveryOptionId);
-    const deliveryDate = new Date(
-      placedOrder.estimatedDeliveryISO
-    ).toLocaleDateString(MARKET_CONFIG.locale, {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
+      ...(isPickupOrder ? { pickupStationId: selectedPickupStation!.id } : {}),
+      ...(shippingAddress ? { shippingAddress } : {}),
+      ...(coupon !== null ? { couponCode: coupon.code } : {}),
+    }).then((result) => {
+      if (!result.ok) {
+        setSubmitting(false);
+        setErrorMsg(result.error);
+        return;
+      }
+      clearCart();
+      window.location.assign(result.authorizationUrl);
     });
-    const address = placedOrder.shippingAddress;
-
-    return (
-      <div className={containerClass}>
-        <div className="mx-auto max-w-2xl py-12 text-center lg:py-16">
-          <span className="mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-600">
-            <CheckCircle2 aria-hidden="true" className="size-9" />
-          </span>
-          <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-zinc-950 sm:text-4xl">
-            Order confirmed!
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-500 sm:text-base">
-            Thanks for shopping with NeedCentral. A confirmation email is on its
-            way to <strong className="text-zinc-900">{placedOrder.email}</strong>.
-          </p>
-
-          <dl className="mt-8 grid gap-3 rounded-2xl bg-white p-6 text-left shadow-sm ring-1 ring-zinc-200 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                Order number
-              </dt>
-              <dd className="mt-1 font-mono text-sm font-bold text-zinc-900">
-                {placedOrder.id}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                Estimated delivery
-              </dt>
-              <dd className="mt-1 text-sm font-medium text-zinc-900">{deliveryDate}</dd>
-              {delivery && (
-                <dd className="mt-0.5 text-xs text-zinc-500">
-                  {delivery.label}
-                  {placedOrder.pickupStation
-                    ? ` · ${placedOrder.pickupStation.city}`
-                    : placedOrder.crossBorder
-                      ? ` · Cross-border (${address?.country ?? ""}) ${delivery.etaMinDays}–${delivery.crossBorderEtaMaxDays ?? delivery.etaMaxDays} days`
-                      : ` · ${delivery.etaMinDays}–${delivery.etaMaxDays} days`}
-                </dd>
-              )}
-            </div>
-            {placedOrder.pickupStation && (
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  Pickup station
-                </dt>
-                <dd className="mt-1 text-sm leading-5 text-zinc-700">
-                  {placedOrder.pickupStation.name}
-                  <br />
-                  {placedOrder.pickupStation.address}
-                </dd>
-              </div>
-            )}
-            {address && (
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  Delivering to
-                </dt>
-                <dd className="mt-1 text-sm leading-5 text-zinc-700">
-                  {address.fullName}, {address.street}, {address.city},{" "}
-                  {address.country}
-                </dd>
-              </div>
-            )}
-          </dl>
-
-          <ul className="mt-4 divide-y divide-zinc-200 rounded-2xl bg-white p-2 text-left shadow-sm ring-1 ring-zinc-200">
-            {placedOrder.items.map((item) => (
-              <li key={item.productId} className="flex items-center gap-3 p-3">
-                <div className="relative size-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-zinc-200">
-                  <Image src={item.image} alt="" fill sizes="48px" className="object-cover" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-zinc-900">{item.name}</p>
-                  <p className="text-xs text-zinc-500 tabular-nums">Qty {item.quantity}</p>
-                </div>
-                <p className="text-sm font-semibold tabular-nums text-zinc-900">
-                  {formatPrice(item.priceCents * item.quantity)}
-                </p>
-              </li>
-            ))}
-            <li className="flex items-center justify-between p-3 text-sm">
-              <span className="font-medium text-zinc-500">
-                Subtotal + delivery ({placedOrder.shippingCents === 0 ? "free" : formatPrice(placedOrder.shippingCents)})
-                {placedOrder.discountCents !== undefined &&
-                  placedOrder.discountCents > 0 && (
-                    <span className="block text-emerald-600">
-                      {placedOrder.couponCode} discount -{formatPrice(placedOrder.discountCents)}
-                    </span>
-                  )}
-              </span>
-              <span className="font-bold tabular-nums text-zinc-950">
-                {formatPrice(placedOrder.totalCents)} paid
-              </span>
-            </li>
-          </ul>
-
-          <p className="mt-5 text-xs leading-5 text-zinc-400">
-            This is a simulated checkout for demo purposes — no real payment was
-            processed and nothing will actually ship.
-          </p>
-
-          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/orders" className={btnSecondary}>
-              View your orders
-            </Link>
-            <Link href="/products" className={btnPrimary}>
-              Continue shopping
-              <ArrowRight aria-hidden="true" className="size-4" />
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   if (items.length === 0) {
@@ -319,9 +160,18 @@ export default function CheckoutPage() {
           Checkout
         </h1>
         <p className="mt-2 text-sm text-zinc-500 sm:text-base">
-          Simulated frontend flow — fill in the details and place a demo order.
+          Review your order, then pay securely with Paystack.
         </p>
       </header>
+
+      {errorMsg && (
+        <div
+          role="alert"
+          className="mb-8 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-200"
+        >
+          {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="grid gap-10 pb-16 lg:grid-cols-[1fr_380px] lg:gap-12" noValidate={false}>
         <div className="space-y-6">
@@ -584,65 +434,25 @@ export default function CheckoutPage() {
               </h2>
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
                 <Lock aria-hidden="true" className="size-3" />
-                Demo only
+                Secure · Paystack
               </span>
             </div>
             <p className="mt-2 text-xs leading-5 text-zinc-500">
-              No real payment is processed — cards, bank transfer and USSD arrive
-              with a later release. Any values work, or use the sample card below.
+              You&apos;ll be redirected to Paystack, our secure payment partner, to
+              complete your order with a card, bank transfer, USSD, QR code or
+              bank account. We never see or store your card details.
             </p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <div className="sm:col-span-3">
-                <label htmlFor="checkout-card" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Card number
-                </label>
-                <input
-                  id="checkout-card"
-                  name="cardNumber"
-                  type="text"
-                  required
-                  inputMode="numeric"
-                  maxLength={19}
-                  autoComplete="cc-number"
-                  placeholder="4242 4242 4242 4242"
-                  defaultValue="4242 4242 4242 4242"
-                  className={inputBase}
-                />
-              </div>
-              <div>
-                <label htmlFor="checkout-expiry" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Expiry
-                </label>
-                <input
-                  id="checkout-expiry"
-                  name="expiry"
-                  type="text"
-                  required
-                  inputMode="numeric"
-                  maxLength={5}
-                  autoComplete="cc-exp"
-                  placeholder="MM/YY"
-                  defaultValue="12/29"
-                  className={inputBase}
-                />
-              </div>
-              <div>
-                <label htmlFor="checkout-cvc" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  CVC
-                </label>
-                <input
-                  id="checkout-cvc"
-                  name="cvc"
-                  type="text"
-                  required
-                  inputMode="numeric"
-                  maxLength={4}
-                  autoComplete="cc-csc"
-                  placeholder="123"
-                  defaultValue="123"
-                  className={inputBase}
-                />
-              </div>
+            <div className="mt-5 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600 ring-1 ring-zinc-200">
+              <span className="font-semibold text-zinc-800">Total to pay</span>{" "}
+              <span className="font-bold tabular-nums text-zinc-950">
+                {formatPrice(finalTotalCents)}
+              </span>{" "}
+              <span className="text-zinc-500">({MARKET_CONFIG.currency})</span>
+              <p className="mt-1 text-xs leading-5 text-zinc-400">
+                Your order is created as pending and stays pending until Paystack
+                confirms the payment. Test mode is enabled — no real transaction
+                is charged.
+              </p>
             </div>
           </section>
         </div>
@@ -705,8 +515,8 @@ export default function CheckoutPage() {
                 </dd>
               </div>
             </dl>
-            <button type="submit" className={`${btnPrimary} mt-6 w-full`}>
-              Place order · {formatPrice(finalTotalCents)}
+            <button type="submit" disabled={submitting} className={`${btnPrimary} mt-6 w-full disabled:cursor-not-allowed disabled:opacity-60`}>
+              {submitting ? "Preparing secure payment…" : `Pay · ${formatPrice(finalTotalCents)}`}
             </button>
             <Link
               href="/cart"

@@ -263,6 +263,11 @@ export interface Order {
   couponCode?: string;
   couponDescription?: string;
   discountCents?: number;
+
+  /** Payment gateway metadata, set after server-side verification/webhook. */
+  paymentProvider?: "paystack";
+  paymentReference?: string;
+  paidAtISO?: string;
 }
 
 /**

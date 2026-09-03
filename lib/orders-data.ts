@@ -122,5 +122,75 @@ function toOrder(row: OrderRow & { items: OrderItemRow[] }): Order {
     ...(row.discountCents !== null && row.discountCents !== undefined
       ? { discountCents: row.discountCents }
       : {}),
+    ...(row.paymentProvider !== null && row.paymentProvider !== undefined
+      ? { paymentProvider: row.paymentProvider as "paystack" }
+      : {}),
+    ...(row.paymentReference !== null && row.paymentReference !== undefined
+      ? { paymentReference: row.paymentReference }
+      : {}),
+    ...(row.paidAt !== null && row.paidAt !== undefined
+      ? { paidAtISO: row.paidAt.toISOString() }
+      : {}),
   };
+}
+
+export async function getOrderById(orderId: string): Promise<Order | undefined> {
+  const row = await db.order.findUnique({
+    where: { id: orderId },
+    include: { items: true },
+  });
+  return row ? toOrder(row) : undefined;
+}
+
+/**
+ * Returns the owner (userId) of an order, or null if it does not exist. Used to
+ * scope payment-callback confirmation to the signed-in owner before the order
+ * is marked paid.
+ */
+export async function getOrderOwnerId(
+  orderId: string
+): Promise<string | null> {
+  const row = await db.order.findUnique({
+    where: { id: orderId },
+    select: { userId: true },
+  });
+  return row?.userId ?? null;
+}
+
+/**
+ * Marks an order as paid and confirmed after server-side gateway
+ * verification. Idempotent: repeated callbacks / webhooks for an already-paid
+ * order are no-ops. Returns the resulting order, or null if not found.
+ */
+export async function markOrderPaid(
+  orderId: string,
+  input: { provider: "paystack"; reference: string; paidAtISO: string }
+): Promise<Order | null> {
+  const updated = await db.$transaction(async (tx) => {
+    const existing = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
+    if (!existing) return null;
+
+    // Idempotency: never re-apply or change details on an order that is
+    // already confirmed / paid.
+    if (existing.status !== "pending") {
+      return toOrder(existing);
+    }
+
+    const paidAt = new Date(input.paidAtISO);
+    const saved = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: "confirmed",
+        paymentProvider: input.provider,
+        paymentReference: input.reference,
+        paidAt,
+      },
+      include: { items: true },
+    });
+    return toOrder(saved);
+  });
+  return updated;
 }

@@ -160,12 +160,24 @@ model Order {
   couponCode          String?
   couponDescription   String?
   discountCents       Int?
+
+  // Payment gateway metadata (Payment Gateway Integration stage).
+  // Set after server-side Paystack verification / webhook confirmation. An
+  // order starts as "pending"; it is only marked paid (status -> "confirmed")
+  // after the provider transaction is verified. Raw card / CVV data is never
+  // stored — only the provider reference and gateway timestamp.
+  paymentProvider    String?
+  paymentReference   String?
+  paidAt             DateTime?
+
   createdAt           DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Per-user order listing (newest first) is the hot read path.
   @@index([userId, placedAtISO])
+  // Webhook / verification lookups are keyed by the gateway reference.
+  @@index([paymentReference])
 
   @@map("orders")
 }
