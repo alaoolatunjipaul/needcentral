@@ -5,13 +5,20 @@ import {
   Prisma,
   type Order as OrderRow,
   type OrderItem as OrderItemRow,
+  type OrderEvent as OrderEventRow,
+  type OrderReturn as OrderReturnRow,
 } from "@/lib/generated/prisma/client";
 import type {
   Address,
   DeliveryOptionId,
   Order,
+  OrderEvent,
+  OrderEventType,
+  OrderItem,
+  OrderReturn,
   OrderStatus,
   PickupStation,
+  ReturnStatus,
 } from "@/types";
 
 // Server-side data-access layer for Project 7 order persistence. Follows the
@@ -82,22 +89,22 @@ export async function listOrdersByUserId(userId: string): Promise<Order[]> {
   const rows = await db.order.findMany({
     where: { userId },
     orderBy: { placedAtISO: "desc" },
-    include: { items: true },
+    include: orderInclude,
   });
   return rows.map(toOrder);
 }
 
-function toOrder(row: OrderRow & { items: OrderItemRow[] }): Order {
+export type OrderRowWithItems = OrderRow & {
+  items: OrderItemRow[];
+  events?: OrderEventRow[];
+  returns?: OrderReturnRow[];
+};
+
+export function toOrder(row: OrderRowWithItems): Order {
   return {
     id: row.id,
     email: row.email,
-    items: row.items.map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      image: item.image,
-      priceCents: item.priceCents,
-      quantity: item.quantity,
-    })),
+    items: row.items.map(toOrderItem),
     subtotalCents: row.subtotalCents,
     shippingCents: row.shippingCents,
     totalCents: row.totalCents,
@@ -131,13 +138,92 @@ function toOrder(row: OrderRow & { items: OrderItemRow[] }): Order {
     ...(row.paidAt !== null && row.paidAt !== undefined
       ? { paidAtISO: row.paidAt.toISOString() }
       : {}),
+    ...(row.trackingNumber !== null && row.trackingNumber !== undefined
+      ? { trackingNumber: row.trackingNumber }
+      : {}),
+    ...(row.shippedAt !== null && row.shippedAt !== undefined
+      ? { shippedAtISO: row.shippedAt.toISOString() }
+      : {}),
+    ...(row.deliveredAt !== null && row.deliveredAt !== undefined
+      ? { deliveredAtISO: row.deliveredAt.toISOString() }
+      : {}),
+    ...(row.events !== undefined
+      ? {
+          events: [...row.events]
+            .sort((a, b) => a.at.getTime() - b.at.getTime())
+            .map(toOrderEvent),
+        }
+      : {}),
+    ...(row.returns !== undefined
+      ? {
+          returns: [...row.returns]
+            .sort((a, b) => a.requestedAt.getTime() - b.requestedAt.getTime())
+            .map(toOrderReturn),
+        }
+      : {}),
   };
 }
+
+function toOrderItem(item: OrderItemRow): OrderItem {
+  return {
+    productId: item.productId,
+    name: item.name,
+    image: item.image,
+    priceCents: item.priceCents,
+    quantity: item.quantity,
+  };
+}
+
+function toOrderEvent(event: OrderEventRow): OrderEvent {
+  return {
+    id: event.id,
+    orderId: event.orderId,
+    eventType: event.eventType as OrderEventType,
+    ...(event.note !== null && event.note !== undefined
+      ? { note: event.note }
+      : {}),
+    atISO: event.at.toISOString(),
+  };
+}
+
+export function toOrderReturn(returnRow: OrderReturnRow): OrderReturn {
+  return {
+    id: returnRow.id,
+    orderId: returnRow.orderId,
+    userId: returnRow.userId,
+    items: (returnRow.items as unknown as OrderItem[]),
+    reason: returnRow.reason,
+    status: returnRow.status as ReturnStatus,
+    ...(returnRow.refundCents !== null && returnRow.refundCents !== undefined
+      ? { refundCents: returnRow.refundCents }
+      : {}),
+    requestedAtISO: returnRow.requestedAt.toISOString(),
+    ...(returnRow.approvedAt !== null && returnRow.approvedAt !== undefined
+      ? { approvedAtISO: returnRow.approvedAt.toISOString() }
+      : {}),
+    ...(returnRow.rejectedAt !== null && returnRow.rejectedAt !== undefined
+      ? { rejectedAtISO: returnRow.rejectedAt.toISOString() }
+      : {}),
+    ...(returnRow.rejectedReason !== null &&
+    returnRow.rejectedReason !== undefined
+      ? { rejectedReason: returnRow.rejectedReason }
+      : {}),
+    ...(returnRow.refundedAt !== null && returnRow.refundedAt !== undefined
+      ? { refundedAtISO: returnRow.refundedAt.toISOString() }
+      : {}),
+  };
+}
+
+const orderInclude = {
+  items: true,
+  events: true,
+  returns: true,
+} as const;
 
 export async function getOrderById(orderId: string): Promise<Order | undefined> {
   const row = await db.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: orderInclude,
   });
   return row ? toOrder(row) : undefined;
 }
@@ -169,7 +255,7 @@ export async function markOrderPaid(
   const updated = await db.$transaction(async (tx) => {
     const existing = await tx.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: orderInclude,
     });
     if (!existing) return null;
 
@@ -180,7 +266,7 @@ export async function markOrderPaid(
     }
 
     const paidAt = new Date(input.paidAtISO);
-    const saved = await tx.order.update({
+    await tx.order.update({
       where: { id: orderId },
       data: {
         status: "confirmed",
@@ -188,9 +274,17 @@ export async function markOrderPaid(
         paymentReference: input.reference,
         paidAt,
       },
-      include: { items: true },
     });
-    return toOrder(saved);
+
+    await tx.orderEvent.create({
+      data: { orderId, eventType: "confirmed", at: paidAt },
+    });
+
+    const result = await tx.order.findUnique({
+      where: { id: orderId },
+      include: orderInclude,
+    });
+    return result ? toOrder(result) : null;
   });
   return updated;
 }

@@ -11,6 +11,12 @@
 // PostgreSQL — Order + OrderItem are persisted scoped to the signed-in user.
 // The remaining high-fidelity / volume entities (reviews, Q&A, wishlist,
 // coupons, delivery / pickup config) stay intentionally client-side for now.
+//
+// Stage #5 scope: enforced buyer protection, returns and shipping logistics.
+// Adds additive fulfillment metadata to Order (static tracking number +
+// shippedAt / deliveredAt), an OrderEvent audit trail, and an OrderReturn
+// lifecycle that ends in a "Refund Pending Manual" state — refunds are recorded,
+// never auto-initiated this stage. No carrier integration; no seller dashboard.
 
 generator client {
   provider = "prisma-client"
@@ -95,6 +101,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   orders        Order[]
+  returns       OrderReturn[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -170,6 +177,18 @@ model Order {
   paymentReference   String?
   paidAt             DateTime?
 
+  // Fulfillment metadata (Buyer protection / returns & shipping, stage #5).
+  // Static NeedCentral-generated tracking number + shipment milestones.
+  // Advancement is simulated through the buyer / order-owner flow this stage.
+  trackingNumber String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
+  // Stage #5 audit trail (one OrderEvent row per lifecycle change).
+  events  OrderEvent[]
+  // Stage #5 returns lifecycle (request -> approved/rejected -> manual refund).
+  returns OrderReturn[]
+
   createdAt           DateTime   @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -196,4 +215,58 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@map("order_items")
+}
+
+// Order lifecycle audit trail (stage #5). One immutable row per state change,
+// mirroring the transition table enforced in lib/order-lifecycle.ts. Kept
+// intentionally free-form (string eventType) so future stages can extend it
+// without a migration.
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  eventType String
+  note      String?
+  at        DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([eventType])
+  @@map("order_events")
+}
+
+// Buyers' return requests (stage #5).
+//
+// Lifecycle:
+//   requested  -> refund_pending_manual   (owner approves; refund is recorded,
+//                                           NOT auto-initiated this stage)
+//   requested  -> rejected                (owner rejects)
+//   refund_pending_manual -> refunded     (manual completion, no provider call)
+//
+// Refunds are a manual, human-owned step this stage: an approved return sets
+// status to "refund_pending_manual" and records refundCents; nothing calls the
+// payment provider. Items are stored as a JSON snapshot (productId, name,
+// priceCents, quantity) so history survives later catalog changes.
+model OrderReturn {
+  id             String   @id @default(cuid())
+  orderId        String
+  userId         String
+  items          Json
+  reason         String
+  status         String   @default("requested")
+  refundCents    Int?
+  requestedAt    DateTime @default(now())
+  approvedAt     DateTime?
+  rejectedAt     DateTime?
+  rejectedReason String?
+  refundedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@map("order_returns")
 }

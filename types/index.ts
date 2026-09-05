@@ -235,6 +235,58 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
+/**
+ * Immutable order-lifecycle events (stage #5). One row is appended per state
+ * change so the buyer can see a dated audit trail. Free-form so later stages
+ * can extend it without a migration.
+ */
+export type OrderEventType =
+  | "placed"
+  | "confirmed"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "return_requested"
+  | "return_approved"
+  | "return_rejected"
+  | "return_refunded";
+
+export interface OrderEvent {
+  id: string;
+  orderId: string;
+  eventType: OrderEventType;
+  note?: string;
+  atISO: string;
+}
+
+/**
+ * Buyer return lifecycle (stage #5). Refunds are recorded but never
+ * auto-initiated this stage:
+ *   requested -> refund_pending_manual (approved) -> refunded (manual)
+ *   requested -> rejected
+ */
+export type ReturnStatus =
+  | "requested"
+  | "refund_pending_manual"
+  | "rejected"
+  | "refunded";
+
+export interface OrderReturn {
+  id: string;
+  orderId: string;
+  userId: string;
+  items: OrderItem[];
+  reason: string;
+  status: ReturnStatus;
+  refundCents?: number;
+  requestedAtISO: string;
+  approvedAtISO?: string;
+  rejectedAtISO?: string;
+  rejectedReason?: string;
+  refundedAtISO?: string;
+}
+
 export interface OrderItem {
   productId: string;
   name: string;
@@ -268,6 +320,15 @@ export interface Order {
   paymentProvider?: "paystack";
   paymentReference?: string;
   paidAtISO?: string;
+
+  /** Fulfillment metadata (stage #5) — static tracking + shipment milestones. */
+  trackingNumber?: string;
+  shippedAtISO?: string;
+  deliveredAtISO?: string;
+
+  /** Stage #5 lifecycle audit trail and return requests for this order. */
+  events?: OrderEvent[];
+  returns?: OrderReturn[];
 }
 
 /**

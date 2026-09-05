@@ -73,18 +73,14 @@ NeedCentral models a multi-seller marketplace in the frontend:
 
 ## Architecture / current project boundary
 
-This Project 4 implementation is a **frontend marketplace application using simulated / client-side persistence** where applicable.
+This project started as a **frontend marketplace application using simulated / client-side persistence** where applicable. Successive roadmap stages have since added real server-side infrastructure:
 
-Real production infrastructure is **intentionally deferred to later roadmap stages** and is **not implemented in this repository**:
+- `Prisma` + PostgreSQL runs the core catalogue (categories, sellers, products) and order history.
+- Production authentication is live: real accounts, password hashing and httpOnly server-side sessions (`lib/auth-service.ts`).
+- A backend exists as Server Actions, server pages and API route handlers (including the Paystack webhook and `/api/*` catalogue/order endpoints).
+- Payment gateway integration is complete (Paystack TEST mode checkout) — see the stage log below.
 
-- PostgreSQL / Prisma
-- Server-side persistence (all user data currently lives in browser `localStorage`)
-- Production authentication (current sign-in/sign-up is a simulated frontend experience)
-- Backend / API
-- Payment gateway integration (checkout is a simulated demo flow, not a real payment)
-- Microservices
-
-Do not mistake the simulated flows above for real backend functionality.
+This section is no longer an exhaustive "not implemented" list. Remaining future infra (microservices, real logistics providers, automated refunds, seller self-service) is tracked in "Future / later stages".
 
 ## Quality / engineering
 
@@ -150,16 +146,36 @@ Later stages (not implemented here) would add:
 
 Stuff clearly distinguished from the current implementation — none of the following exist in this repository today and they are listed only as future direction:
 
-- A real database (PostgreSQL / Prisma) and server-side persistence
-- Production authentication and identity
-- A backend / REST API
-- Payment gateway integration (a real, charged checkout)
-- Real, enforced buyer protection, returns and shipping logistics
+- Buyer protection, returns and shipping logistics — **currently in progress as roadmap stage #5** (approved scope documented below)
 - Seller self-service sign-up and listing management
 - Automated end-to-end test coverage
 - Deployment configuration (e.g. Vercel)
+- Microservices
+- Real logistics / carrier integration and automated (autonomous) refund processing
 
-These are future infra/scope items, not commitments bundled into Project 4.
+These are future infra/scope items, not commitments bundled into this stage.
+
+## Roadmap stage log
+
+### Stage: Payment Gateway Integration — COMPLETE
+
+Paystack (TEST mode) checkout was integrated and verified:
+- Server-side order assembly and validation (`app/checkout/actions.ts`) — every price is re-read from the catalogue; no client-supplied totals are trusted.
+- Paystack hosted Standard checkout (`lib/paystack.ts` initialize → authorization URL → callback → verify), with an HMAC-SHA512 webhook fallback (`app/api/webhooks/paystack/route.ts`).
+- Orders persist to PostgreSQL as `pending` and are only marked `confirmed` after a verified transaction with a matching amount (`lib/payment-verify.ts`, `lib/orders-data.ts` `markOrderPaid`).
+- No card data, CVV or credentials are handled or stored anywhere.
+
+### Stage: Buyer protection, returns and shipping logistics (#5) — IN PROGRESS
+
+Approved scope (decisions locked, implemented under this stage only):
+
+- **Returns record + manual refund:** requesting a return records the request, and an approved return creates a `Refund Pending Manual` state. No Paystack refund is auto-initiated in this stage (automated refunds remain future work).
+- **No seller self-service:** no seller authentication/dashboard is built. Fulfillment advancement (`shipped` / `delivered`) is simulated through the existing buyer / order-owner flow for this stage.
+- **Static tracking numbers:** NeedCentral generates static shipment tracking numbers. No carrier or logistics-provider integration.
+- **Return policy (enforced server-side):** an order must be eligible (delivered/confirmed) and the return must be requested within 30 days of delivery/confirmation.
+- **Boundary:** strictly #5. No seller self-service (#6), no automated refund integration, no external logistics provider, no microservices.
+
+Implementation is additive: new Prisma models/fields + a migration applied with `prisma migrate` against the existing database — no resets, drops, destructive migrations or reseeding.
 
 ## Design / product philosophy
 
@@ -172,4 +188,4 @@ The goal of this project is a **credible marketplace experience** rather than a 
 - **Customer retention features** — wishlist, recently-viewed, order history and an account experience
 - **Responsive and accessible experience** — mobile-first layouts, semantic HTML, keyboard and screen-reader friendly controls
 
-NeedCentral is presented as a credible marketplace **frontend**; it is not a real, operating commercial marketplace (there are no real payments, orders or accounts).
+NeedCentral is presented as a credible marketplace experience; payments run in Paystack **TEST mode** only (no real transaction is charged), and this is not a real, operating commercial marketplace.
