@@ -132,10 +132,6 @@ export async function verifyPayment(
   }
 
   if (res.ok !== true || json.status !== true) {
-    console.error(
-      `[paystack] verify failed for ${reference}: http ${res.status}, message:`,
-      json.message ?? json.code ?? "(no message)"
-    );
     return null;
   }
 
