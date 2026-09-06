@@ -146,8 +146,8 @@ Later stages (not implemented here) would add:
 
 Stuff clearly distinguished from the current implementation — none of the following exist in this repository today and they are listed only as future direction:
 
-- Buyer protection, returns and shipping logistics — **currently in progress as roadmap stage #5** (approved scope documented below)
-- Seller self-service sign-up and listing management
+- Buyer protection, returns and shipping logistics — **complete as roadmap stage #5** (documented in the stage log below)
+- Seller self-service sign-up and listing management — **currently in progress as roadmap stage #6** (approved scope documented below)
 - Automated end-to-end test coverage
 - Deployment configuration (e.g. Vercel)
 - Microservices
@@ -165,7 +165,7 @@ Paystack (TEST mode) checkout was integrated and verified:
 - Orders persist to PostgreSQL as `pending` and are only marked `confirmed` after a verified transaction with a matching amount (`lib/payment-verify.ts`, `lib/orders-data.ts` `markOrderPaid`).
 - No card data, CVV or credentials are handled or stored anywhere.
 
-### Stage: Buyer protection, returns and shipping logistics (#5) — IN PROGRESS
+### Stage: Buyer protection, returns and shipping logistics (#5) — COMPLETE
 
 Approved scope (decisions locked, implemented under this stage only):
 
@@ -176,6 +176,17 @@ Approved scope (decisions locked, implemented under this stage only):
 - **Boundary:** strictly #5. No seller self-service (#6), no automated refund integration, no external logistics provider, no microservices.
 
 Implementation is additive: new Prisma models/fields + a migration applied with `prisma migrate` against the existing database — no resets, drops, destructive migrations or reseeding.
+
+### Stage: Seller self-service sign-up and listing management (#6) — IN PROGRESS
+
+Approved scope (decisions locked, implemented under this stage only):
+
+- **One storefront per user (1:1):** signing in and becoming a seller creates exactly one store owned by that user (`Seller.userId` unique). Existing seeded sellers and their storefront URLs are untouched.
+- **Self-service onboarding:** an authenticated user with no store is offered `Become a seller`; the store reuses the existing storefront URL identity (slugified id) — no separate slug system.
+- **Store profile management:** the owner can edit store name, location and description server-side.
+- **Listing management:** the owner can create, edit, un-publish (hide from the catalogue while keeping the record), re-publish and delete their own products. New listings default to `active`.
+- **Ownership enforcement (server-side):** every mutation derives the owner from the authenticated session; a client can never target another seller's store or products by id. Public catalogue/storefront queries filter to `listingStatus: 'active'`.
+- **No payouts, no analytics, no KYC:** financial settlement, seller analytics and identity verification remain future work for this project.
 
 ## Design / product philosophy
 

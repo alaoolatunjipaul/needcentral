@@ -56,6 +56,7 @@ export interface ProductInput {
   featured?: boolean;
   origin?: ProductOrigin;
   ratingDistribution?: RatingDistribution[];
+  listingStatus?: "active" | "unpublished";
 }
 
 type ProductRow = {
@@ -71,6 +72,7 @@ type ProductRow = {
   reviewCount: number;
   stock: number;
   featured: boolean;
+  listingStatus: string;
   originCountry: string | null;
   originCountryCode: string | null;
   madeInAfrica: boolean | null;
@@ -93,6 +95,7 @@ function toProduct(row: ProductRow): Product {
       | undefined,
     stock: row.stock,
     featured: row.featured || undefined,
+    listingStatus: row.listingStatus as "active" | "unpublished",
     sellerId: row.sellerId ?? undefined,
     origin:
       row.originCountry && row.originCountryCode && row.madeInAfrica !== null
@@ -118,6 +121,7 @@ const productSelect = {
   reviewCount: true,
   stock: true,
   featured: true,
+  listingStatus: true,
   originCountry: true,
   originCountryCode: true,
   madeInAfrica: true,
@@ -225,6 +229,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
       reviewCount: input.reviewCount ?? 0,
       stock: input.stock ?? 0,
       featured: input.featured ?? false,
+      listingStatus: input.listingStatus ?? "active",
       originCountry: input.origin?.country ?? null,
       originCountryCode: input.origin?.countryCode ?? null,
       madeInAfrica: input.origin?.madeInAfrica ?? null,
@@ -265,6 +270,9 @@ export async function updateProduct(
       : {}),
     ...(patch.stock !== undefined ? { stock: patch.stock } : {}),
     ...(patch.featured !== undefined ? { featured: patch.featured } : {}),
+    ...(patch.listingStatus !== undefined
+      ? { listingStatus: patch.listingStatus }
+      : {}),
     ...(patch.origin !== undefined
       ? {
           originCountry: patch.origin?.country ?? null,

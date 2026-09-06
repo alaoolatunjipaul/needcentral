@@ -62,7 +62,15 @@ export interface Product {
   featured?: boolean;
   sellerId?: string;
   origin?: ProductOrigin;
+  /**
+   * Seller-self-service listing state (roadmap #6). "active" listings appear
+   * on the storefront; "unpublished" listings are withheld from every public
+   * catalogue query but remain owned by the seller for later re-enabling.
+   */
+  listingStatus?: ListingStatus;
 }
+
+export type ListingStatus = "active" | "unpublished";
 
 export interface Seller {
   id: string;
@@ -70,6 +78,11 @@ export interface Seller {
   location: string;
   description: string;
   joinedYear: number;
+  /**
+   * Roadmap #6: the authenticated user who owns this storefront (1:1).
+   * Seeded storefronts (the original 9) have no userId.
+   */
+  userId?: string;
 }
 
 /**

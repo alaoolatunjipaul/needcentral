@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { Heart, LogOut, Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { Heart, LogOut, Menu, Search, ShoppingBag, Store, User, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCart } from "@/components/cart/CartProvider";
 import { useWishlist } from "@/components/wishlist/WishlistProvider";
@@ -133,6 +133,14 @@ export function Header() {
                 {itemCount > 99 ? "99+" : itemCount}
               </span>
             )}
+          </Link>
+
+          <Link
+            href="/seller"
+            className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 hover:text-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 lg:inline-flex"
+          >
+            <Store aria-hidden="true" className="size-4" />
+            Sell
           </Link>
 
           {isAuthenticated && customer ? (

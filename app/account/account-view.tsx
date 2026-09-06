@@ -11,6 +11,7 @@ import {
   LogIn,
   Mail,
   ShoppingBag,
+  Store,
   User,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -262,6 +263,13 @@ export function AccountView({
               className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
             >
               Explore African made
+            </Link>
+            <Link
+              href="/seller"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-brand-50 px-6 py-3 text-sm font-semibold text-brand-700 ring-1 ring-brand-200 transition hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+            >
+              <Store aria-hidden="true" className="size-4" />
+              Sell on NeedCentral
             </Link>
           </div>
           <p className="mt-5 text-xs leading-5 text-zinc-400">

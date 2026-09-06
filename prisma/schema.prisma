@@ -44,6 +44,12 @@ model Seller {
   joinedYear  Int
   products    Product[]
 
+  // Roadmap #6: an authenticated user owns this storefront (1:1). Seeded
+  // sellers (the original 9) have userId null and are untouched.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([userId])
   @@map("sellers")
 }
 
@@ -61,6 +67,11 @@ model Product {
   stock               Int
   featured            Boolean  @default(false)
 
+  // Roadmap #6: listings can be unpublished by their owner without deleting
+  // the row (soft-hide from the storefront). "active" is shown, "unpublished"
+  // is hidden from all public catalogue queries.
+  listingStatus String  @default("active")
+
   // Origin (nullable) normalised from the flat `origin` object into scalars.
   originCountry     String?
   originCountryCode String?
@@ -77,6 +88,8 @@ model Product {
   @@index([sellerId])
   @@index([featured])
   @@index([categoryId, priceCents])
+  // Seller dashboard lists a store's own products (active first).
+  @@index([sellerId, listingStatus])
 
   @@map("products")
 }
@@ -102,6 +115,8 @@ model User {
   sessions      Session[]
   orders        Order[]
   returns       OrderReturn[]
+  // Roadmap #6: the storefront this user owns (1:1, nullable for customers).
+  sellerProfile Seller?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

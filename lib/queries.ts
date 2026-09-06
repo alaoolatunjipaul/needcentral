@@ -24,6 +24,7 @@ type ProductRow = {
   reviewCount: number;
   stock: number;
   featured: boolean;
+  listingStatus: string;
   originCountry: string | null;
   originCountryCode: string | null;
   madeInAfrica: boolean | null;
@@ -46,6 +47,7 @@ function toProduct(row: ProductRow): Product {
       | undefined,
     stock: row.stock,
     featured: row.featured || undefined,
+    listingStatus: row.listingStatus as "active" | "unpublished",
     sellerId: row.sellerId ?? undefined,
     origin:
       row.originCountry && row.originCountryCode && row.madeInAfrica !== null
@@ -64,7 +66,10 @@ function toSeller(row: {
   location: string;
   description: string;
   joinedYear: number;
+  userId?: string | null;
 }): Seller {
+  // Public storefront/API serialization: the owner's internal userId is never
+  // exposed. Ownership stays server-side only (sellers-data/seller-access).
   return {
     id: row.id,
     name: row.name,
@@ -76,6 +81,7 @@ function toSeller(row: {
 
 export async function getAllProducts(): Promise<Product[]> {
   const rows = await db.product.findMany({
+    where: { listingStatus: "active" },
     orderBy: { id: "asc" },
     select: productSelect,
   });
@@ -87,12 +93,12 @@ export async function getProductById(id: string): Promise<Product | undefined> {
     where: { id },
     select: productSelect,
   });
-  return row ? toProduct(row) : undefined;
+  return row && row.listingStatus === "active" ? toProduct(row) : undefined;
 }
 
 export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
   const rows = await db.product.findMany({
-    where: { featured: true },
+    where: { featured: true, listingStatus: "active" },
     orderBy: { rating: "desc" },
     take: limit,
     select: productSelect,
@@ -102,6 +108,7 @@ export async function getFeaturedProducts(limit = 8): Promise<Product[]> {
 
 export async function getTrendingProducts(limit = 8): Promise<Product[]> {
   const rows = await db.product.findMany({
+    where: { listingStatus: "active" },
     orderBy: [{ rating: "desc" }, { reviewCount: "desc" }],
     take: limit,
     select: productSelect,
@@ -111,14 +118,16 @@ export async function getTrendingProducts(limit = 8): Promise<Product[]> {
 
 export async function getAfricanMadeProducts(): Promise<Product[]> {
   const rows = await db.product.findMany({
-    where: { madeInAfrica: true },
+    where: { madeInAfrica: true, listingStatus: "active" },
     select: productSelect,
   });
   return rows.map(toProduct);
 }
 
 export async function countAfricanMadeProducts(): Promise<number> {
-  return db.product.count({ where: { madeInAfrica: true } });
+  return db.product.count({
+    where: { madeInAfrica: true, listingStatus: "active" },
+  });
 }
 
 export async function getRelatedProducts(
@@ -126,7 +135,7 @@ export async function getRelatedProducts(
   limit = 4
 ): Promise<Product[]> {
   const sameCategory = await db.product.findMany({
-    where: { categoryId: product.category, id: { not: product.id } },
+    where: { categoryId: product.category, id: { not: product.id }, listingStatus: "active" },
     orderBy: { rating: "desc" },
     take: limit,
     select: productSelect,
@@ -141,6 +150,7 @@ export async function getRelatedProducts(
       featured: true,
       categoryId: { not: product.category },
       id: { notIn: [...existingIds] },
+      listingStatus: "active",
     },
     orderBy: { rating: "desc" },
     take: limit - sameCategory.length,
@@ -152,9 +162,10 @@ export async function getRelatedProducts(
 export async function getCategoryCounts(): Promise<
   Record<CategoryId | "all", number>
 > {
-  const total = await db.product.count();
+  const total = await db.product.count({ where: { listingStatus: "active" } });
   const grouped = await db.product.groupBy({
     by: ["categoryId"],
+    where: { listingStatus: "active" },
     _count: { _all: true },
   });
   const counts = { all: total } as Record<CategoryId | "all", number>;
@@ -167,7 +178,7 @@ export async function getCategoryCounts(): Promise<
 
 export async function getSellerProducts(sellerId: string): Promise<Product[]> {
   const rows = await db.product.findMany({
-    where: { sellerId },
+    where: { sellerId, listingStatus: "active" },
     select: productSelect,
   });
   return rows.map(toProduct);
@@ -185,7 +196,7 @@ export async function getSellerSummary(
   if (!seller) return undefined;
 
   const sellerProducts = await db.product.findMany({
-    where: { sellerId },
+    where: { sellerId, listingStatus: "active" },
     select: productSelect,
   });
   const mapped = sellerProducts.map(toProduct);
@@ -222,6 +233,7 @@ export async function filterAndSortProducts(
   const where: Record<string, unknown> = {
     ...(query.category !== "all" ? { categoryId: query.category } : {}),
     ...(query.collection === "african-made" ? { madeInAfrica: true } : {}),
+    listingStatus: "active",
     ...(needle
       ? {
           OR: [
@@ -265,6 +277,7 @@ const productSelect = {
   reviewCount: true,
   stock: true,
   featured: true,
+  listingStatus: true,
   originCountry: true,
   originCountryCode: true,
   madeInAfrica: true,
