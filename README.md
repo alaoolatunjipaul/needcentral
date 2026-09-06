@@ -188,6 +188,41 @@ Approved scope (decisions locked, implemented under this stage only):
 - **Ownership enforcement (server-side):** every mutation derives the owner from the authenticated session; a client can never target another seller's store or products by id. Public catalogue/storefront queries filter to `listingStatus: 'active'`.
 - **No payouts, no analytics, no KYC:** financial settlement, seller analytics and identity verification remain future work for this project.
 
+### Stage: Marketplace REST API (#7) — COMPLETE
+
+The server-side HTTP API surface implemented across earlier stages (`app/api/*`), documented here for the record. It is additive to the pages/Server Actions the storefront itself uses — the application UI does not call these endpoints.
+
+Public catalogue (no auth):
+
+| Method | Endpoint | Behavior |
+| --- | --- | --- |
+| GET | `/api/categories` | Categories with product counts (`{ categories, counts }`) |
+| GET | `/api/products` | Active listings only; filtered/sorted via `category`, `collection`, `q`, `sort`; returns `{ items, total, categories }` |
+| GET | `/api/products/[id]` | Single active listing; 404 if unknown/unpublished |
+| GET | `/api/sellers` | Seller index (`{ sellers }`); internal user ids never exposed |
+| GET | `/api/sellers/[id]` | `{ seller, summary, products }` (active products only); 404 if unknown |
+
+Seller self-service (#6, owner-scoped):
+
+| Method | Endpoint | Behavior |
+| --- | --- | --- |
+| POST | `/api/products` | Create a listing under the caller's store; 401 / 403 (no store) / 400 / 201 |
+| PATCH | `/api/products/[id]` | Edit listing, or `{ "listingStatus": "active" \| "unpublished" }` to publish/unpublish; owner-only (401 / 403) |
+| DELETE | `/api/products/[id]` | Delete own listing; owner-only (401 / 403) |
+| POST | `/api/sellers` | Become a seller — one store per user; 401 / 409 (already a seller) / 400 / 201 |
+| PATCH | `/api/sellers/[id]` | Edit own store; ownership verified before any mutation (401 / 404 / 403 / 400) |
+
+Order history (signed-in, owner-scoped):
+
+| Method | Endpoint | Behavior |
+| --- | --- | --- |
+| GET | `/api/orders` | The caller's orders only; 401 if signed out |
+| POST | `/api/orders` | Create an order from a client-supplied `{ email, items[{ productId, quantity }], deliveryOptionId, shippingAddress?, pickupStationId?, couponCode? }` payload; prices, line totals, subtotal, shipping, discount, total and `status: "pending"` are all derived server-side by the shared assembler (`lib/order-assembly.ts`) — client financial data is never trusted; 401 / 400 / 201 |
+
+Auth: DB-backed sessions (`lib/auth-service.ts`, httpOnly cookie). Errors: JSON `{ "error": "..." }` with 400 (invalid input), 401 (unauthenticated), 403 (not authorized / not owner), 404 (not found), 409 (conflict), 500 (internal, message only). Ownership is derived from the session; a client cannot act on another user's orders, store, or listings. The Paystack webhook (`/api/webhooks/paystack`) belongs to the Payment Gateway Integration stage, not this one.
+
+Production verification: the live deployment was smoke-tested — public reads return 200, unknown product ids return 404, all signed-in mutations return 401 unauthenticated, and public listings/sellers exclude internal fields; no 500s.
+
 ## Design / product philosophy
 
 The goal of this project is a **credible marketplace experience** rather than a simple demo page:
