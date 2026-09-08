@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Roadmap #8: the independent notification service has its own lint setup.
+    "services/**",
   ]),
 ]);
 

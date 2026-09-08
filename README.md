@@ -79,6 +79,7 @@ This project started as a **frontend marketplace application using simulated / c
 - Production authentication is live: real accounts, password hashing and httpOnly server-side sessions (`lib/auth-service.ts`).
 - A backend exists as Server Actions, server pages and API route handlers (including the Paystack webhook and `/api/*` catalogue/order endpoints).
 - Payment gateway integration is complete (Paystack TEST mode checkout) — see the stage log below.
+- **Roadmap #8:** the first independent microservice (an additive, authenticated Notification service with its own data store) exists at `services/notification-service/` — see the stage log below. NeedCentral itself remains a modular monolith.
 
 This section is no longer an exhaustive "not implemented" list. Remaining future infra (microservices, real logistics providers, automated refunds, seller self-service) is tracked in "Future / later stages".
 
@@ -110,6 +111,23 @@ npm run build    # create an optimized production build
 ```
 
 (`npm run start` is also available from `package.json` to serve the production build locally.)
+
+### Running the Notification service (Roadmap #8)
+
+The independent service runs as its own process and is optional:
+
+```bash
+cd services/notification-service
+npm install
+copy .env.example .env      # set PORT / NOTIFICATION_SERVICE_TOKEN / DB_PATH
+npm run dev                 # http://localhost:4001
+```
+
+Set matching variables in the monolith environment for the storefront to emit events:
+`NOTIFICATION_SERVICE_URL=http://localhost:4001` and
+`NOTIFICATION_SERVICE_TOKEN=<same value as the service>`.
+The monolith runs identically without them — checkout and order confirmation never
+depend on the service (see the stage log below).
 
 ## Project structure
 
@@ -150,7 +168,7 @@ Stuff clearly distinguished from the current implementation — none of the foll
 - Seller self-service sign-up and listing management — **currently in progress as roadmap stage #6** (approved scope documented below)
 - Automated end-to-end test coverage
 - Deployment configuration (e.g. Vercel)
-- Microservices
+- Further microservices (see stage #8 — one additive service is delivered)
 - Real logistics / carrier integration and automated (autonomous) refund processing
 
 These are future infra/scope items, not commitments bundled into this stage.
@@ -222,6 +240,22 @@ Order history (signed-in, owner-scoped):
 Auth: DB-backed sessions (`lib/auth-service.ts`, httpOnly cookie). Errors: JSON `{ "error": "..." }` with 400 (invalid input), 401 (unauthenticated), 403 (not authorized / not owner), 404 (not found), 409 (conflict), 500 (internal, message only). Ownership is derived from the session; a client cannot act on another user's orders, store, or listings. The Paystack webhook (`/api/webhooks/paystack`) belongs to the Payment Gateway Integration stage, not this one.
 
 Production verification: the live deployment was smoke-tested — public reads return 200, unknown product ids return 404, all signed-in mutations return 401 unauthenticated, and public listings/sellers exclude internal fields; no 500s.
+
+### Stage: First independent microservice — Notification service (#8) — COMPLETE
+
+Approved as a **read-only audit first**, then implemented as an additive learning service. NeedCentral **remains a modular monolith** — no existing marketplace domain was split.
+
+- **The service:** `services/notification-service/` — a single-purpose, authenticated HTTP service with its own SQLite data store (Node's built-in `node:sqlite`, no migrations, no native deps). Own `package.json`, process (port 4001) and tests.
+- **Event contract:** `POST /v1/notifications` accepting `{ eventId, type, userId, channels?, payload? }`; registered event type `order.confirmed` only; `GET /v1/health` for liveness.
+- **Authentication:** shared bearer token (`NOTIFICATION_SERVICE_TOKEN`, timing-safe compare). The service refuses to start without it.
+- **Idempotency:** `eventId` is the deduplication key (HTTP layer + DB `UNIQUE`). A duplicate returns `200 { duplicate: true }` with no re-delivery.
+- **Persistence/delivery:** rows start `received`, then the dev transport (log-only; no SMS/email/push provider) flips status to `delivered`/`failed` with an attempt count and timestamp. Acceptance (201) never depends on delivery.
+- **NeedCentral integration:** `lib/notifications-client.ts` is a never-throwing, fire-and-forget client. After `markOrderPaid` in `lib/payment-verify.ts` the monolith emits `order.confirmed:<orderId>` (`void`, not awaited). This is the single choke-point shared by both the Paystack webhook and the `/orders` callback.
+- **Graceful degradation:** if the service is down, slow (2.5s timeout), rejecting, or not configured, confirmation continues unchanged — verified by unit tests and a connection-refused integration test. No marketplace DB, Paystack, auth, orders, sellers or REST API #7 behavior changed.
+- **Tests:** service unit + HTTP integration (auth, validation, persistence, idempotency, delivery failure, routing) via Vitest; monolith client tests (contract shape, 201/200/500, unconfigured, fetch-failure, stopped-service).
+- **Removal:** deleting `services/notification-service/`, `lib/notifications-client.ts` and the hook in `lib/payment-verify.ts` restores the previous tree exactly.
+
+Local development: see "Running the Notification service (Roadmap #8)" under `npm run` scripts above.
 
 ## Design / product philosophy
 

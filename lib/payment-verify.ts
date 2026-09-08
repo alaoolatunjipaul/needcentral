@@ -1,7 +1,8 @@
 import "server-only";
 
-import { getOrderById, markOrderPaid } from "@/lib/orders-data";
+import { getOrderById, getOrderOwnerId, markOrderPaid } from "@/lib/orders-data";
 import { verifyPayment } from "@/lib/paystack";
+import { sendNotificationEvent } from "@/lib/notifications-client";
 
 // Server-side verification orchestration shared by the pay-return callback
 // (/orders?paid=return&ref=...) and the Paystack webhook. Both paths route
@@ -66,5 +67,41 @@ export async function verifyAndConfirmPayment(
     paidAtISO: verified.paidAtISO ?? new Date().toISOString(),
   });
 
+  // Roadmap #8: best-effort, fire-and-forget notification. This is strictly
+  // additive — the emit never throws, is not awaited, and can never alter
+  // order confirmation, so checkout succeeds even when the notification
+  // service is unavailable or not configured.
+  void emitOrderConfirmed(order);
+
   return "confirmed";
+}
+
+/**
+ * Emits the `order.confirmed` notification event to the notification service.
+ * Fully best-effort: every failure path is swallowed. If the service is not
+ * configured or unreachable, orders are simply confirmed without a
+ * notification side effect.
+ */
+async function emitOrderConfirmed(order: {
+  id: string;
+  totalCents: number;
+  placedAtISO: string;
+}): Promise<void> {
+  try {
+    const userId = await getOrderOwnerId(order.id);
+    if (!userId) return;
+    await sendNotificationEvent({
+      eventId: `order.confirmed:${order.id}`,
+      type: "order.confirmed",
+      userId,
+      channels: ["email"],
+      payload: {
+        orderId: order.id,
+        totalCents: order.totalCents,
+        placedAtISO: order.placedAtISO,
+      },
+    });
+  } catch {
+    // Notifications are optional; never surface errors to the order flow.
+  }
 }
